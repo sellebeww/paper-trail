@@ -105,6 +105,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@paper-trail/chain':
+        specifier: workspace:*
+        version: link:../../packages/chain
       react:
         specifier: ^19.3.1
         version: 19.3.1
