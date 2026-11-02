@@ -8,7 +8,7 @@ import {
   type PayloadObject,
 } from '@paper-trail/chain';
 import type { Db } from '../db.js';
-import type { Entry as EntryRow } from '../generated/prisma/client.js';
+import type { Entry as EntryRow, Prisma } from '../generated/prisma/client.js';
 
 export class LedgerNotFoundError extends Error {
   override name = 'LedgerNotFoundError';
@@ -30,6 +30,17 @@ export interface AppendInput {
 }
 
 export type StoredEntry = ChainEntry & { id: string };
+
+export type Tx = Prisma.TransactionClient;
+
+/**
+ * Extra work inside the append transaction (for example consuming a witness invite). Throwing from
+ * a hook rolls back everything, including the entry. beforeInsert runs after the ledger lock is held.
+ */
+export interface AppendHooks {
+  beforeInsert?: (tx: Tx) => Promise<void>;
+  afterInsert?: (tx: Tx, entry: StoredEntry) => Promise<void>;
+}
 
 export const toChainEntry = (row: EntryRow): ChainEntry => ({
   v: 1,
@@ -54,6 +65,7 @@ export const appendEntry = (
   ledgerId: string,
   input: AppendInput,
   now: () => Date = () => new Date(),
+  hooks: AppendHooks = {},
 ): Promise<StoredEntry> =>
   db.$transaction(
     async (tx) => {
@@ -64,6 +76,7 @@ export const appendEntry = (
         SELECT head_seq FROM ledgers WHERE id = ${ledgerId}::uuid FOR UPDATE`;
       const ledger = locked[0];
       if (!ledger) throw new LedgerNotFoundError(`Ledger ${ledgerId} not found`);
+      await hooks.beforeInsert?.(tx);
 
       const head =
         ledger.head_seq === null
@@ -105,7 +118,9 @@ export const appendEntry = (
         where: { id: ledgerId },
         data: { headSeq: entry.seq, headHash: entry.entry_hash },
       });
-      return { ...entry, id: row.id };
+      const stored = { ...entry, id: row.id };
+      await hooks.afterInsert?.(tx, stored);
+      return stored;
     },
     // Appends to a busy ledger queue on the row lock; allow time for that instead of failing fast.
     { maxWait: 10_000, timeout: 10_000 },

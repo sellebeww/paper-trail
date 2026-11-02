@@ -28,6 +28,11 @@ const schema = z.object({
     .default(15 * 1024 * 1024),
   /** Failed-or-not attempts per IP per 15 minutes on login and register. */
   AUTH_RATE_LIMIT: z.coerce.number().int().min(1).default(10),
+  /** Default lifetime of a witness link. Owners may choose 1 hour to 30 days. */
+  WITNESS_INVITE_TTL_HOURS: z.coerce.number().int().min(1).max(720).default(72),
+  /** Public witness endpoints: requests per IP per 15 minutes, and per token per 15 minutes. */
+  WITNESS_RATE_LIMIT_IP: z.coerce.number().int().min(1).default(60),
+  WITNESS_RATE_LIMIT_TOKEN: z.coerce.number().int().min(1).default(20),
   /** Requests per IP per minute on everything else. */
   API_RATE_LIMIT: z.coerce.number().int().min(1).default(300),
 });

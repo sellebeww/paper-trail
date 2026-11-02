@@ -7,7 +7,8 @@ import { requireAuth } from '../auth.js';
 import type { AppContext } from '../context.js';
 import type { Db } from '../db.js';
 import { AppError, notFound } from '../errors.js';
-import type { Entry as EntryRow, Ledger } from '../generated/prisma/client.js';
+import type { Attachment, Entry as EntryRow, Ledger } from '../generated/prisma/client.js';
+import type { ObjectStore } from '../storage.js';
 import { ALLOWED_TYPES, readUpload } from '../uploads.js';
 import { appendEntry, toChainEntry, type StoredEntry } from '../services/ledger.js';
 
@@ -237,30 +238,42 @@ export const ledgerRoutes = ({ db, store, config }: AppContext): Router => {
       include: { entry: true },
     });
     if (!attachment) throw notFound('Lampiran');
-
-    let body;
-    try {
-      body = await store.get(attachment.storageKey);
-    } catch {
-      throw new AppError(
-        503,
-        'STORAGE_UNAVAILABLE',
-        'Berkas sementara tidak dapat diambil. Coba lagi nanti.',
-      );
-    }
-    const payload = attachment.entry.payload as { name?: string };
-    const ext = ALLOWED_TYPES[attachment.mime]?.ext ?? 'bin';
-    const name = payload.name ?? `foto-${attachment.entry.seq}.${ext}`;
-    res.setHeader('Content-Type', attachment.mime);
-    res.setHeader('Content-Length', String(attachment.sizeBytes));
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="${asciiName(name)}"; filename*=UTF-8''${encodeURIComponent(name)}`,
-    );
-    res.setHeader('Cache-Control', 'private, no-store');
-    res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
-    await pipeline(body, res);
+    await sendAttachment(res, store, attachment, 'attachment');
   });
 
   return router;
+};
+
+/**
+ * Streams a stored file after the caller has authorized access. `inline` lets a witness view a photo
+ * in the page; the sandboxing CSP and nosniff still stop the file from running as a document.
+ */
+export const sendAttachment = async (
+  res: Response,
+  store: ObjectStore,
+  attachment: Attachment & { entry: EntryRow },
+  disposition: 'attachment' | 'inline',
+) => {
+  let body;
+  try {
+    body = await store.get(attachment.storageKey);
+  } catch {
+    throw new AppError(
+      503,
+      'STORAGE_UNAVAILABLE',
+      'Berkas sementara tidak dapat diambil. Coba lagi nanti.',
+    );
+  }
+  const payload = attachment.entry.payload as { name?: string };
+  const ext = ALLOWED_TYPES[attachment.mime]?.ext ?? 'bin';
+  const name = payload.name ?? `foto-${attachment.entry.seq}.${ext}`;
+  res.setHeader('Content-Type', attachment.mime);
+  res.setHeader('Content-Length', String(attachment.sizeBytes));
+  res.setHeader(
+    'Content-Disposition',
+    `${disposition}; filename="${asciiName(name)}"; filename*=UTF-8''${encodeURIComponent(name)}`,
+  );
+  res.setHeader('Cache-Control', 'private, no-store');
+  res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
+  await pipeline(body, res);
 };

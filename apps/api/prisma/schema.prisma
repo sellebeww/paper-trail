@@ -144,6 +144,8 @@ model WitnessInvite {
   expiresAt     DateTime  @map("expires_at") @db.Timestamptz(3)
   usedAt        DateTime? @map("used_at") @db.Timestamptz(3)
   revokedAt     DateTime? @map("revoked_at") @db.Timestamptz(3)
+  /// The only owner identity shown to the witness, chosen by the owner for this invite.
+  ownerDisplayName String? @map("owner_display_name") @db.VarChar(80)
 
   ledger      Ledger   @relation(fields: [ledgerId], references: [id], onDelete: Restrict)
   targetEntry Entry    @relation("InviteTarget", fields: [ledgerId, targetEntryId], references: [ledgerId, id], onDelete: Restrict, onUpdate: Restrict)
@@ -163,7 +165,10 @@ model Witness {
   cosignEntryId String   @unique @map("cosign_entry_id") @db.Uuid
   displayName   String?  @map("display_name") @db.VarChar(80)
   /// Uncompressed P-256 public point, base64url (SPEC §4.1).
+  /// Raw public key, base64url (SPEC §4.1).
   publicKey     String   @map("public_key") @db.VarChar(100)
+  /// Ed25519 or ES256.
+  alg           String   @db.VarChar(10)
   signature     String   @db.VarChar(100)
   signedAt      DateTime @map("signed_at") @db.Timestamptz(3)
 

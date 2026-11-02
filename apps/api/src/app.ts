@@ -10,6 +10,7 @@ import { AppError, errorHandler, notFoundHandler, requestId } from './errors.js'
 import { checkHealth, type HealthDeps } from './health.js';
 import { authRoutes } from './routes/auth.js';
 import { ledgerRoutes } from './routes/ledgers.js';
+import { witnessRoutes } from './routes/witness.js';
 
 export const healthRoutes = (deps: HealthDeps): Router => {
   const router = Router();
@@ -39,7 +40,8 @@ export const buildApp = (ctx: AppContext) => {
             msg: 'request',
             request_id: res.locals['requestId'],
             method: req.method,
-            path: req.path,
+            // Witness tokens are bearer secrets in the path; never write them to logs.
+            path: req.path.replace(/^\/witness\/[^/]+/, '/witness/:token'),
             status: res.statusCode,
             ms: Date.now() - start,
           }),
@@ -70,6 +72,7 @@ export const buildApp = (ctx: AppContext) => {
 
   app.use(authRoutes(ctx));
   app.use(ledgerRoutes(ctx));
+  app.use(witnessRoutes(ctx));
 
   app.use(notFoundHandler);
   app.use(errorHandler);
