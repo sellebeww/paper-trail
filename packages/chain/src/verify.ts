@@ -8,6 +8,7 @@ import {
   isTimestamp,
 } from './entry.js';
 import type { Entry } from './types.js';
+import { verifyWitnessSignature, witnessAuthorRef } from './witness.js';
 
 export type ChainErrorCode =
   | 'PACK_MALFORMED'
@@ -16,7 +17,9 @@ export type ChainErrorCode =
   | 'LEDGER_MISMATCH'
   | 'BROKEN_AT_SEQ'
   | 'PAYLOAD_HASH_MISMATCH'
-  | 'TIME_REGRESSION';
+  | 'TIME_REGRESSION'
+  | 'WITNESS_SIG_INVALID'
+  | 'WITNESS_TARGET_MISMATCH';
 
 export type ChainVerification =
   | { ok: true; code: 'CHAIN_OK'; length: number; details: string }
@@ -101,6 +104,19 @@ export const verifyChain = (entries: readonly Entry[]): ChainVerification => {
     }
     if (prev && entry.created_at < prev.created_at) {
       return fail('TIME_REGRESSION', i, 'created_at is earlier than the previous entry');
+    }
+    // SPEC §8 step 6. An undisclosed cosign payload cannot be checked; the chain still holds.
+    if (entry.type === 'witness_cosign' && entry.payload !== undefined) {
+      const p = entry.payload as Record<string, unknown>;
+      const check = verifyWitnessSignature(entry.ledger_id, p);
+      if (!check.ok) return fail('WITNESS_SIG_INVALID', i, check.reason);
+      if (entry.author_ref !== witnessAuthorRef(p['witness_pub'] as string)) {
+        return fail('WITNESS_SIG_INVALID', i, 'author_ref does not match the witness key');
+      }
+      const target = p['target_seq'] as number;
+      if (target >= i || entries[target]?.entry_hash !== p['target_entry_hash']) {
+        return fail('WITNESS_TARGET_MISMATCH', i, `cosign does not match entry ${target}`);
+      }
     }
     prev = entry;
   }

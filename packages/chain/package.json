@@ -16,6 +16,11 @@
       "types": "./src/index.ts",
       "source": "./src/index.ts",
       "default": "./dist/index.js"
+    },
+    "./browser": {
+      "types": "./src/browser.ts",
+      "source": "./src/browser.ts",
+      "default": "./dist/browser.js"
     }
   }
 }

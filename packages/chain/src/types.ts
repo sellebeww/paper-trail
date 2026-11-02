@@ -50,25 +50,30 @@ export interface FilePayload {
   name: string;
 }
 
-/** What the witness's browser signs (SPEC §4.1). */
-export interface WitnessStatement {
-  purpose: 'papertrail.witness.cosign.v1';
-  ledger_id: string;
+/** Ed25519 preferred; ES256 (ECDSA P-256 + SHA-256) where the browser lacks Ed25519 (SPEC §4.1). */
+export type WitnessAlg = 'Ed25519' | 'ES256';
+
+/** Payload of a `witness_cosign` entry (SPEC §4.2). Every field except `signature` is signed. */
+export interface WitnessCosignPayload {
+  invite_id: string;
   target_seq: number;
   target_entry_hash: Hex;
   statement: 'confirm';
-  witness_name?: string;
+  witness_name: string;
+  /** Raw public key, base64url: 32 bytes (Ed25519) or 65-byte uncompressed point (ES256). */
   witness_pub: string;
+  alg: WitnessAlg;
+  /** The witness device's clock. A claim, never evidence time; the entry's created_at is. */
+  signed_client_time: Timestamp;
+  /** 64 bytes, base64url: Ed25519 signature, or ES256 r||s. */
+  signature: string;
 }
 
-/** Payload of a `witness_cosign` entry (SPEC §4.2). */
-export interface WitnessCosignPayload {
-  target_seq: number;
-  target_entry_hash: Hex;
-  statement: 'confirm';
-  witness_name?: string;
-  witness_pub: string;
-  signature: string;
+/** What the witness's browser signs: JCS of this object (SPEC §4.1). */
+export interface WitnessMessage extends Omit<WitnessCosignPayload, 'signature'> {
+  v: 1;
+  purpose: 'papertrail.witness.cosign.v1';
+  ledger_id: string;
 }
 
 /** Stored RFC 3161 anchor (SPEC §5.2). */
