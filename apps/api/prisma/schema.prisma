@@ -46,8 +46,25 @@ model User {
   passwordHash String   @map("password_hash")
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   ledgers      Ledger[]
+  sessions     Session[]
 
   @@map("users")
+}
+
+/// Login session. Only SHA-256(token) is stored; the token itself lives in the httpOnly cookie.
+model Session {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  tokenHash String   @unique @map("token_hash") @db.Char(64)
+  /// Bound to the session; the CSRF header must equal this and the pt_csrf cookie.
+  csrfToken String   @map("csrf_token") @db.VarChar(64)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
 }
 
 model Ledger {
