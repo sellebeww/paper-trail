@@ -6,13 +6,20 @@
   "license": "UNLICENSED",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch --env-file-if-exists=../../.env src/index.ts",
+    "dev": "tsx watch --conditions=source --env-file-if-exists=../../.env src/index.ts",
     "build": "tsc -p tsconfig.build.json",
     "start": "node --env-file-if-exists=../../.env dist/index.js",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "test:int": "vitest run -c vitest.int.config.ts",
+    "postinstall": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
+    "db:generate": "prisma generate"
   },
   "dependencies": {
+    "@paper-trail/chain": "workspace:*",
+    "@prisma/adapter-pg": "7.10.1",
+    "@prisma/client": "7.10.1",
     "amqplib": "^2.2.1",
     "cors": "^2.8.6",
     "express": "^5.3.0",
@@ -25,6 +32,7 @@
     "@types/amqplib": "^0.10.8",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
-    "@types/pg": "^8.23.1"
+    "@types/pg": "^8.23.1",
+    "prisma": "7.10.1"
   }
 }

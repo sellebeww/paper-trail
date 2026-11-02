@@ -1,0 +1,184 @@
+// Copyright (c) 2026 Vassel Goleyu. All rights reserved.
+// Append-only guards, CHECK constraints and chain-link triggers live in hand-written SQL in
+// migrations/*_append_only_guards. Column names are snake_case to match docs/SPEC.md.
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum LedgerCategory {
+  kerja
+  sewa
+  freelance
+  gig
+  lainnya
+
+  @@map("ledger_category")
+}
+
+enum EntryType {
+  note
+  photo
+  file
+  witness_cosign
+
+  @@map("entry_type")
+}
+
+enum AnchorStatus {
+  pending
+  ok
+  failed
+
+  @@map("anchor_status")
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique @db.VarChar(254)
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  ledgers      Ledger[]
+
+  @@map("users")
+}
+
+model Ledger {
+  id        String         @id @default(uuid()) @db.Uuid
+  ownerId   String         @map("owner_id") @db.Uuid
+  title     String         @db.VarChar(120)
+  category  LedgerCategory
+  /// Null while the ledger has no entries. Moved only by appendEntry; a trigger allows +1 steps only.
+  headSeq   Int?           @map("head_seq")
+  headHash  String?        @map("head_hash") @db.Char(64)
+  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  owner     User            @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  entries   Entry[]
+  invites   WitnessInvite[]
+  witnesses Witness[]
+  anchors   Anchor[]
+
+  @@index([ownerId])
+  @@map("ledgers")
+}
+
+/// Append-only. UPDATE, DELETE and TRUNCATE are rejected by triggers.
+model Entry {
+  id          String    @id @default(uuid()) @db.Uuid
+  ledgerId    String    @map("ledger_id") @db.Uuid
+  seq         Int
+  type        EntryType
+  /// Hashed value; set by the application from the server clock, never defaulted by the DB.
+  createdAt   DateTime  @map("created_at") @db.Timestamptz(3)
+  authorRef   String    @map("author_ref") @db.VarChar(140)
+  payloadHash String    @map("payload_hash") @db.Char(64)
+  /// Inline payload (SPEC §3). File bytes are not here; photo/file payloads reference content_sha256.
+  payload     Json
+  prevHash    String    @map("prev_hash") @db.Char(64)
+  entryHash   String    @map("entry_hash") @db.Char(64)
+
+  ledger        Ledger          @relation(fields: [ledgerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  attachments   Attachment[]
+  anchors       Anchor[]
+  inviteTargets WitnessInvite[] @relation("InviteTarget")
+  witnessTarget Witness[]       @relation("WitnessTarget")
+  cosignOf      Witness?        @relation("WitnessCosign")
+
+  @@unique([ledgerId, seq])
+  @@unique([ledgerId, entryHash])
+  /// Composite targets so anchors and witness rows cannot point into another ledger.
+  @@unique([ledgerId, seq, entryHash])
+  @@unique([ledgerId, id])
+  @@map("entries")
+}
+
+/// Metadata of a stored file. Append-only, like entries.
+model Attachment {
+  id         String   @id @default(uuid()) @db.Uuid
+  entryId    String   @map("entry_id") @db.Uuid
+  /// Object key in S3/MinIO; content-addressed, so several entries may share one key.
+  storageKey String   @map("storage_key")
+  mime       String   @db.VarChar(100)
+  sizeBytes  Int      @map("size_bytes")
+  sha256     String   @db.Char(64)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  entry Entry @relation(fields: [entryId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([entryId])
+  @@map("attachments")
+}
+
+/// A one-time witness link. Only SHA-256(token) is stored.
+model WitnessInvite {
+  id            String    @id @default(uuid()) @db.Uuid
+  ledgerId      String    @map("ledger_id") @db.Uuid
+  targetEntryId String    @map("target_entry_id") @db.Uuid
+  tokenHash     String    @unique @map("token_hash") @db.Char(64)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  expiresAt     DateTime  @map("expires_at") @db.Timestamptz(3)
+  usedAt        DateTime? @map("used_at") @db.Timestamptz(3)
+  revokedAt     DateTime? @map("revoked_at") @db.Timestamptz(3)
+
+  ledger      Ledger   @relation(fields: [ledgerId], references: [id], onDelete: Restrict)
+  targetEntry Entry    @relation("InviteTarget", fields: [ledgerId, targetEntryId], references: [ledgerId, id], onDelete: Restrict, onUpdate: Restrict)
+  witness     Witness?
+
+  @@index([ledgerId])
+  @@map("witness_invites")
+}
+
+/// A completed witness signature. Rows are created at signing time, so the whole table is append-only.
+model Witness {
+  id            String   @id @default(uuid()) @db.Uuid
+  ledgerId      String   @map("ledger_id") @db.Uuid
+  inviteId      String   @unique @map("invite_id") @db.Uuid
+  targetEntryId String   @map("target_entry_id") @db.Uuid
+  /// The witness_cosign entry that carries this signature in the chain.
+  cosignEntryId String   @unique @map("cosign_entry_id") @db.Uuid
+  displayName   String?  @map("display_name") @db.VarChar(80)
+  /// Uncompressed P-256 public point, base64url (SPEC §4.1).
+  publicKey     String   @map("public_key") @db.VarChar(100)
+  signature     String   @db.VarChar(100)
+  signedAt      DateTime @map("signed_at") @db.Timestamptz(3)
+
+  ledger      Ledger        @relation(fields: [ledgerId], references: [id], onDelete: Restrict)
+  invite      WitnessInvite @relation(fields: [inviteId], references: [id], onDelete: Restrict)
+  targetEntry Entry         @relation("WitnessTarget", fields: [ledgerId, targetEntryId], references: [ledgerId, id], onDelete: Restrict, onUpdate: Restrict)
+  cosignEntry Entry         @relation("WitnessCosign", fields: [cosignEntryId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([ledgerId])
+  @@map("witnesses")
+}
+
+/// RFC 3161 anchor of a ledger head (SPEC §5). Identity columns are immutable; status=ok rows are frozen.
+model Anchor {
+  id               String       @id @default(uuid()) @db.Uuid
+  ledgerId         String       @map("ledger_id") @db.Uuid
+  anchoredHeadSeq  Int          @map("anchored_head_seq")
+  anchoredHeadHash String       @map("anchored_head_hash") @db.Char(64)
+  anchorDigest     String       @map("anchor_digest") @db.Char(64)
+  tsaUrl           String       @map("tsa_url")
+  /// DER TimeStampToken. Base64url only in exports.
+  tstToken         Bytes?       @map("tst_token")
+  tstGenTime       DateTime?    @map("tst_gen_time") @db.Timestamptz(3)
+  status           AnchorStatus @default(pending)
+  attempts         Int          @default(0)
+  lastError        String?      @map("last_error")
+  createdAt        DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  ledger Ledger @relation(fields: [ledgerId], references: [id], onDelete: Restrict)
+  head   Entry  @relation(fields: [ledgerId, anchoredHeadSeq, anchoredHeadHash], references: [ledgerId, seq, entryHash], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([ledgerId, anchoredHeadSeq])
+  @@map("anchors")
+}
