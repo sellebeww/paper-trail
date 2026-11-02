@@ -19,7 +19,8 @@
     "test": "pnpm -r test",
     "infra:up": "test -f .env || cp .env.example .env; docker compose up -d --wait",
     "infra:down": "docker compose down",
-    "infra:logs": "docker compose logs -f"
+    "infra:logs": "docker compose logs -f",
+    "test:int": "pnpm --filter @paper-trail/api test:int"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
