@@ -14,11 +14,22 @@ export class LedgerNotFoundError extends Error {
   override name = 'LedgerNotFoundError';
 }
 
+export interface AttachmentInput {
+  storageKey: string;
+  mime: string;
+  sizeBytes: number;
+  sha256: string;
+}
+
 export interface AppendInput {
   type: EntryType;
   authorRef: string;
   payload: PayloadObject;
+  /** Stored in the same transaction as the entry; its sha256 must equal payload.content_sha256. */
+  attachment?: AttachmentInput;
 }
+
+export type StoredEntry = ChainEntry & { id: string };
 
 export const toChainEntry = (row: EntryRow): ChainEntry => ({
   v: 1,
@@ -43,9 +54,12 @@ export const appendEntry = (
   ledgerId: string,
   input: AppendInput,
   now: () => Date = () => new Date(),
-): Promise<ChainEntry> =>
+): Promise<StoredEntry> =>
   db.$transaction(
     async (tx) => {
+      if (input.attachment && input.attachment.sha256 !== input.payload['content_sha256']) {
+        throw new Error('attachment sha256 does not match payload.content_sha256');
+      }
       const locked = await tx.$queryRaw<{ head_seq: number | null }[]>`
         SELECT head_seq FROM ledgers WHERE id = ${ledgerId}::uuid FOR UPDATE`;
       const ledger = locked[0];
@@ -71,7 +85,7 @@ export const appendEntry = (
         head && toChainEntry(head),
       );
 
-      await tx.entry.create({
+      const row = await tx.entry.create({
         data: {
           ledgerId,
           seq: entry.seq,
@@ -84,11 +98,14 @@ export const appendEntry = (
           entryHash: entry.entry_hash,
         },
       });
+      if (input.attachment) {
+        await tx.attachment.create({ data: { entryId: row.id, ...input.attachment } });
+      }
       await tx.ledger.update({
         where: { id: ledgerId },
         data: { headSeq: entry.seq, headHash: entry.entry_hash },
       });
-      return entry;
+      return { ...entry, id: row.id };
     },
     // Appends to a busy ledger queue on the row lock; allow time for that instead of failing fast.
     { maxWait: 10_000, timeout: 10_000 },

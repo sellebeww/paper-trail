@@ -1,17 +1,18 @@
 // Copyright (c) 2026 Vassel Goleyu. All rights reserved.
 import type { AddressInfo } from 'node:net';
+import express from 'express';
 import { afterEach, describe, expect, it } from 'vitest';
-import { buildApp } from './app.js';
+import { healthRoutes } from './app.js';
 
 const up = async () => {};
 const down = async () => {
   throw new Error('unreachable');
 };
 
-let server: ReturnType<ReturnType<typeof buildApp>['listen']> | undefined;
+let server: ReturnType<ReturnType<typeof express>['listen']> | undefined;
 
-const get = async (deps: Parameters<typeof buildApp>[0]) => {
-  server = buildApp(deps, 'http://localhost:5173').listen(0);
+const get = async (deps: Parameters<typeof healthRoutes>[0]) => {
+  server = express().use(healthRoutes(deps)).listen(0);
   const { port } = server.address() as AddressInfo;
   const res = await fetch(`http://127.0.0.1:${port}/health`);
   return { status: res.status, body: await res.json() };
