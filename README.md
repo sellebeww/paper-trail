@@ -30,6 +30,7 @@ an entry is true, who really wrote it, or that nothing was left out. See [docs/T
 | [docs/SPEC.md](docs/SPEC.md)                     | Entry format, hash formula, witness signature, anchors, pack, verification |
 | [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md)     | What is protected, from whom, and the honest limits                        |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)     | Components and Mermaid flow diagrams                                       |
+| [docs/API.md](docs/API.md)                       | Owner-side HTTP API, security notes, `curl` quickstart                     |
 | [docs/OPEN_DECISIONS.md](docs/OPEN_DECISIONS.md) | Undecided questions with recommendations                                   |
 
 ## Repository layout
