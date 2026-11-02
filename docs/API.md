@@ -140,6 +140,40 @@ so `payload_hash` commits to the file's content hash and its metadata. If the en
 object is deleted. Download is streamed through the API after the ownership check, as `attachment` with
 `X-Content-Type-Options: nosniff` and a sandboxing CSP, so an uploaded file can never run as a page.
 
+### Witness invites (owner)
+
+| Method & path                       | Body                                                                           | Response                                                |
+| ----------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------- |
+| `POST /entries/:id/witness-invites` | `{ expires_in_hours?: 1..720 (default 72), owner_display_name?: 1..80 chars }` | `201 { invite, token, url }`                            |
+| `GET /entries/:id/witness-invites`  | –                                                                              | `200 { invites: [...] }` newest first                   |
+| `DELETE /witness-invites/:id`       | –                                                                              | `204` (idempotent); `409 INVITE_USED` if already signed |
+
+`url` is `<WEB_ORIGIN>/saksi#<token>`. The token is shown **once** and only its SHA-256 is stored; send the URL to
+the witness yourself. `owner_display_name` is the only owner identity the witness will see (the ledger title and
+your email are never shown). `invite` = `{ id, entry_id, status: open|used|revoked|expired, owner_display_name,
+created_at, expires_at, used_at, revoked_at, witness }`, where `witness` is `null` or
+`{ display_name, alg, signed_at, cosign_entry_id }`. Entries of type `witness_cosign` cannot be witnessed (`400`).
+
+### Witness (public, no login)
+
+| Method & path                    | Response                                                                                                                                   |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GET /witness/:token`            | `200 { invite: { id, expires_at, owner_display_name }, entry: { ledger_id, seq, type, created_at, entry_hash, payload, has_attachment } }` |
+| `GET /witness/:token/attachment` | The photo or file, `inline`, sandboxed                                                                                                     |
+| `POST /witness/:token/sign`      | `201 { receipt }` (SPEC §4.3)                                                                                                              |
+
+Sign body: `{ alg: "Ed25519"|"ES256", witness_pub, signature, witness_name, signed_client_time }`, produced by the
+witness page as described in [SPEC §4.1](SPEC.md#41-what-is-signed). The server fills in the invite and target
+itself, verifies, and appends the `witness_cosign` entry in the same transaction that marks the invite used.
+
+- Any unusable token (unknown, malformed, expired, revoked or already used) gets the same `404 INVITE_UNAVAILABLE`.
+- A bad signature is `400 SIGNATURE_INVALID`; a name that is not 1–80 NFC characters is `400 INVALID_NAME`. Neither
+  uses up the invite.
+- Rate limits: `WITNESS_RATE_LIMIT_IP` per IP and `WITNESS_RATE_LIMIT_TOKEN` per token, each per 15 minutes
+  (defaults 60 and 20).
+- Responses carry `Cache-Control: no-store` and `Referrer-Policy: no-referrer`; request logs show `/witness/:token`.
+- The POST needs the CSRF header like every other POST (the page gets it from `GET /auth/csrf`).
+
 ### There is deliberately no edit or delete
 
 There is no `PUT`, `PATCH` or `DELETE` for entries, and none for ledgers. This is the point of the product: a record
@@ -167,4 +201,7 @@ append a new entry that says so. (Ledger and account deletion for privacy reason
 - The S3 client has been exercised only against an in-memory fake in tests, not yet against a running MinIO.
 - EXIF/GPS metadata in photos is stored as uploaded ([OPEN_DECISIONS D7](OPEN_DECISIONS.md)).
 - Production cookies should move to the `__Host-` prefix once the deployment domain is fixed.
-- Witness links (Step 4) will carry a secret in the URL path; the request logger must be revisited to redact it.
+- Witness API paths contain the token. Our logger redacts it; a reverse proxy or CDN in front of the API must be
+  configured to do the same before production.
+- A witness name is permanent (append-only chain). There is no way to remove a cosign made by someone who got hold of a
+  leaked link; see [THREAT_MODEL §5.2](THREAT_MODEL.md).

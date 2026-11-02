@@ -1,4 +1,4 @@
-# Paper Trail Format Specification — Draft v0.2
+# Paper Trail Format Specification — Draft v0.3
 
 Status: **draft, pre-alpha**. Nothing here is frozen. Changes from v0.1 are listed in §10. Items marked **[OPEN]** are decisions
 tracked in [OPEN_DECISIONS.md](OPEN_DECISIONS.md). The key words MUST, SHOULD and MAY are used as in RFC 2119.
@@ -89,66 +89,116 @@ lets a verifier recompute the hash. Stripping EXIF/GPS metadata is a privacy dec
 
 ## 4. Witness co-sign
 
-A witness has no account. The owner creates a one-time link for one target entry. The link carries a random
-256-bit token. The server stores only `SHA256(token)`; the plaintext token exists only in the link. The link
-expires (default 7 days) and works once.
+A witness has no account. The owner creates a one-time **invite** for one target entry (any type except
+`witness_cosign`). The invite carries a random 256-bit token (base64url, 43 characters). The server stores only
+`SHA256(token)`. The token appears only in the link the owner shares, and only in its **fragment**
+(`https://<web>/saksi#<token>`), so it is never sent in the page request or in a `Referer`. An invite expires
+(default 72 hours, owner may choose 1 hour to 30 days), can be revoked by the owner while unused, and works once.
 
-The witness's browser generates a fresh key pair (ECDSA P-256 via WebCrypto; **[OPEN]** vs Ed25519). The
-private key never leaves the browser. The witness sees the target entry (the owner chose to share it),
-optionally types a name (self-declared, ≤ 80 characters, not verified), and presses confirm.
+The witness page shows the target entry (the owner chose to share it), its `entry_hash`, and an owner name only if
+the owner typed one for this invite. The witness types a display name (self-declared, not verified), confirms,
+and the browser signs. The private key is generated in the browser as non-extractable and never leaves it.
 
 ### 4.1 What is signed
 
-The signed message is the JCS encoding of this object:
+The signed message is the UTF-8 bytes of the JCS encoding of:
 
 ```json
 {
+  "v": 1,
   "purpose": "papertrail.witness.cosign.v1",
-  "ledger_id": "…",
+  "ledger_id": "…uuid…",
+  "invite_id": "…uuid…",
   "target_seq": 3,
   "target_entry_hash": "…64 hex…",
   "statement": "confirm",
-  "witness_name": "Budi",
-  "witness_pub": "…base64url…"
+  "witness_name": "Siti Rahayu",
+  "witness_pub": "…base64url…",
+  "alg": "Ed25519",
+  "signed_client_time": "2026-11-03T08:00:00.000Z"
 }
 ```
 
-- `statement` is a code: `confirm` ("I saw this entry as shown"). More codes may be added.
-- `witness_name` is omitted if the witness gave none.
-- `witness_pub` is the uncompressed P-256 public point (65 bytes), base64url.
-- No client timestamp is signed. Time comes from the entry that carries the signature.
+| Field                                          | Why it is signed                                                                                                                                                                                                    |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `v`, `purpose`                                 | Domain separation: the signature cannot be reused as anything else.                                                                                                                                                 |
+| `ledger_id`, `target_seq`, `target_entry_hash` | Exactly what was witnessed. The hash alone is unique; `seq` makes the statement readable.                                                                                                                           |
+| `invite_id`                                    | Binds the signature to one invite, so it cannot be replayed with another invite.                                                                                                                                    |
+| `statement`                                    | Meaning of the signature. `confirm` = "I have seen this entry as shown". Other codes may be added in later versions.                                                                                                |
+| `witness_name`                                 | 1–80 code points, Unicode **NFC**, no leading/trailing space, no control characters. The browser normalizes before signing; the server rejects other forms instead of normalizing, which would break the signature. |
+| `witness_pub`, `alg`                           | Binds the message to its key and algorithm (no key or algorithm substitution).                                                                                                                                      |
+| `signed_client_time`                           | The witness device's clock. A **claim only**: never used as evidence time and not checked for skew (cheap phones often have wrong clocks). The authoritative time is the cosign entry's `created_at`.               |
 
-Signature: ECDSA P-256 with SHA-256 over the JCS bytes, raw `r || s` (64 bytes), base64url.
+Algorithms (WebCrypto):
+
+| `alg`     | When                                                | `witness_pub` (raw, base64url)                | Signature (base64url)                     |
+| --------- | --------------------------------------------------- | --------------------------------------------- | ----------------------------------------- |
+| `Ed25519` | Preferred, used whenever the browser supports it.   | 32 bytes                                      | 64 bytes                                  |
+| `ES256`   | Fallback for browsers without Ed25519 in WebCrypto. | 65-byte uncompressed P-256 point (`0x04‖x‖y`) | 64 bytes, raw `r‖s` (IEEE P1363), SHA-256 |
+
+base64url is strict: no padding, and it must re-encode to the same string. ES256 signatures are malleable
+(`(r, s)` and `(r, n−s)` both verify); this does not matter here because the signature is fixed inside a hashed entry.
 
 ### 4.2 The cosign entry
 
-The server verifies the signature, then appends an entry of type `witness_cosign` to the same ledger with this payload:
+The server takes the target and invite from its own records (never from the request), adds the witness's
+`alg`, `witness_pub`, `witness_name`, `signed_client_time` and `signature`, verifies the signature, and appends an
+entry of type `witness_cosign` to the same ledger. Its payload has **exactly** these fields (a verifier rejects
+any extra field, because it would not be covered by the signature):
 
 ```json
 {
+  "invite_id": "…",
   "target_seq": 3,
   "target_entry_hash": "…",
   "statement": "confirm",
-  "witness_name": "Budi",
+  "witness_name": "Siti Rahayu",
   "witness_pub": "…",
-  "signature": "…base64url…"
+  "alg": "Ed25519",
+  "signed_client_time": "2026-11-03T08:00:00.000Z",
+  "signature": "…"
 }
 ```
 
-`author_ref` is `witness:` followed by the lowercase hex SHA-256 of the decoded `witness_pub` bytes.
+The signed message is rebuilt from the payload plus the entry's `ledger_id`. `author_ref` is `witness:` followed by
+the lowercase hex SHA-256 of the decoded `witness_pub` bytes. Marking the invite as used happens in the same
+database transaction as the append, under the ledger lock, so two parallel signatures with one token produce exactly
+one cosign entry.
 
 ### 4.3 Witness receipt
 
-After signing, the witness receives a receipt: the cosign entry's `seq`, `entry_hash`, and `created_at`. The
-witness SHOULD keep it (screenshot, share to chat). It is an independent copy of a chain position, which limits
-what a dishonest server can later change (see THREAT_MODEL §4.2).
+After signing, the witness can download a receipt ("bukti saya"), their own independent copy:
+
+```json
+{
+  "format": "papertrail.witness-receipt/0.1",
+  "signed_message": { "…the §4.1 object…": "…" },
+  "signature": "…",
+  "cosign_entry": {
+    "v": 1,
+    "ledger_id": "…",
+    "seq": 4,
+    "type": "witness_cosign",
+    "created_at": "…",
+    "author_ref": "…",
+    "payload_hash": "…",
+    "prev_hash": "…",
+    "entry_hash": "…"
+  },
+  "target_entry": { "seq": 3, "entry_hash": "…" }
+}
+```
+
+With the receipt alone anyone can check the signature over `signed_message`. Because `cosign_entry.entry_hash`
+commits (through `prev_hash`) to the whole chain before it, a later pack that lacks this hash at this `seq`
+proves the history was rewritten (THREAT_MODEL §4.2). The private key is not in the receipt; it is discarded.
 
 ### 4.4 What the signature does and does not prove
 
-It proves: whoever held the link and the generated key confirmed this exact `target_entry_hash` in this
-ledger, and the server cannot fabricate that confirmation later without that key.
-It does **not** prove who the witness is, nor that the witness is independent of the owner. Identity binding
-is **[OPEN]**.
+It proves: whoever held the link (and the key generated at that moment) stated `confirm` for this exact
+`target_entry_hash` in this ledger, and the server cannot fabricate or move that statement later without the key.
+It does **not** prove who the witness is, that the witness is independent of the owner, or that the entry's content
+is true. Identity binding is **[OPEN]**.
 
 ## 5. Anchor (RFC 3161)
 
@@ -286,6 +336,15 @@ independent findings (anchors, witnesses) that can be evaluated.
 - `0.x` pack versions carry no stability promise.
 
 ## 10. Changes
+
+**v0.3** (witness co-sign; entry `v` stays `1`, but cosign payloads from v0.2 drafts are not valid v0.3 payloads):
+
+- Signed message (§4.1) now includes `v`, `invite_id`, `alg` and `signed_client_time`; `witness_name` is required.
+- Algorithms: `Ed25519` preferred, `ES256` (ECDSA P-256) as fallback for browsers without Ed25519. v0.2 had ES256 only.
+- Cosign payload (§4.2) has an exact field set; extra fields are invalid.
+- Links put the token in the URL fragment; default expiry is 72 hours (was 7 days).
+- Witness receipt format `papertrail.witness-receipt/0.1` (§4.3).
+- `verifyChain` checks disclosed cosign payloads (§8 step 6) and stops at the first failure like other chain checks.
 
 **v0.2** (no change to how any existing valid entry is hashed; entry `v` stays `1`):
 

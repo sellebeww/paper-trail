@@ -154,10 +154,36 @@ create that confirmation without the key, and cannot later move it to a differen
 
 ### 5.2 Leaked or forwarded link
 
-A link is a bearer secret. Whoever opens it first can cosign. Mitigations: 256-bit random token, only its hash is
-stored, single use, expiry (default 7 days), owner can revoke, owner sees whether it was consumed and the
-self-declared name. Not mitigated: an attacker who obtains the link before the intended witness wins the race.
-Advice to owners: send the link over a channel the witness controls, ask the witness to confirm by another route.
+A link is a bearer secret: **whoever opens it first can sign, under any name they like.**
+
+What happens if it leaks to someone else:
+
+- That person sees the one entry the invite points at (and its photo or file, if any), plus the owner name the
+  owner chose for that invite. Nothing else in the ledger: not the title, other entries, or the owner's email.
+- If they sign before the intended witness, a cosign with their chosen name is appended. Because the chain is
+  append-only, **it cannot be removed**, not by the owner and not by us. The intended witness then sees "link not
+  valid" and the owner must issue a new invite.
+- They cannot sign twice, change what was signed, sign a different entry, or reuse the signature with another
+  invite (`invite_id` and `target_entry_hash` are inside the signed message).
+
+Mitigations in place:
+
+| Mitigation                                                                                  | Effect                                                                                                                 |
+| ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| 256-bit random token; only `SHA256(token)` stored                                           | Guessing is infeasible; a database leak does not reveal usable links.                                                  |
+| Token only in the URL **fragment** of the shared link                                       | Not sent with the page request, not in `Referer`, not in web server or proxy logs.                                     |
+| API logs redact `/witness/<token>` to `/witness/:token`                                     | The token is not written to our logs. Reverse proxies in front of the API must redact the same path (deployment note). |
+| `Referrer-Policy: no-referrer`, `Cache-Control: no-store` on witness responses and the page | The token does not leak through links on the page or caches.                                                           |
+| Single use, consumed atomically with the append                                             | Parallel attempts with one token yield exactly one cosign (tested with 10 in parallel).                                |
+| Expiry (default 72 h) and owner revocation while unused                                     | Shrinks the window in which a leaked link is useful.                                                                   |
+| One generic "not valid" answer for unknown, malformed, expired, revoked and used tokens     | A guesser cannot tell which tokens exist or what happened to them.                                                     |
+| Rate limits per IP and per token (hashed key)                                               | Limits scanning and repeated attempts on one link.                                                                     |
+| Owner sees each invite's status and the signer's name                                       | A wrong or unexpected signer is visible quickly.                                                                       |
+
+Not mitigated: an attacker who obtains the link before the intended witness wins the race, and the resulting
+cosign is permanent. The honest remedy is social and on the record: the owner appends a note stating that cosign
+`seq N` was not made by the intended witness and invites the witness again. Advice to owners: send the link over a
+channel the witness controls (personal chat, not a group), and confirm with the witness by another route.
 
 ### 5.3 Collusion and sybil witnesses
 
@@ -168,8 +194,12 @@ if added, would collect personal data, which conflicts with the minimal-data pri
 
 ### 5.4 Witness privacy and coercion
 
-A witness sees the one entry the owner chose to share. They enter only a name they choose to give. We store the
-public key and the signature, not a phone number or email, unless a later decision changes this.
+A witness sees the one entry the owner chose to share. They enter only a name they choose to give; the page says
+it is stored permanently and visible to the owner. Because entries are append-only, **a witness name cannot be
+deleted later**, even on request; a witness who is worried should use a recognisable nickname. We store the public
+key, the signature, the name and the device clock reading, not a phone number or email, unless a later decision
+changes this. The witness's private key is non-extractable and discarded, so nobody (including us) can sign as
+that key again; the witness also cannot later prove "that key was mine" beyond holding the receipt.
 
 ## 6. Keys, TSA and trust roots
 

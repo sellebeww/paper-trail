@@ -36,11 +36,13 @@ Items marked **VERIFY** depend on external facts that have **not** been checked;
 
 ## Needs a decision at Step 2–4
 
-### D4. Witness signature scheme (Step 4)
+### D4. Witness signature scheme (Step 4) — decided
 
-- **Recommendation:** ECDSA P-256 (WebCrypto), as written in SPEC §4.
-- **Why:** supported by every browser with WebCrypto, including older low-end phones; Ed25519 in WebCrypto is newer
-  and not available everywhere, which would silently exclude some witnesses. Ed25519 can be added as a second `alg` later.
+- **Decision:** Ed25519 when the browser supports it, ECDSA P-256 (`ES256`) as automatic fallback (SPEC §4.1).
+- **Why:** Ed25519 is simpler and not malleable; the fallback keeps witnesses on older phones from being silently excluded.
+  Both paths are tested, including in Chrome with Ed25519 disabled.
+- **Still open:** whether to offer the witness an exportable key (so they could later prove "that signature was mine"),
+  at the cost of a secret they must protect. Current choice: no, the key is non-extractable and discarded.
 
 ### D5. Witness identity binding
 

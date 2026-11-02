@@ -105,7 +105,7 @@ sequenceDiagram
   O->>A: Create witness link for entry N
   A->>A: token = 32 random bytes
   A->>D: Store SHA-256(token), ledger, N, expiry, status=open
-  A-->>O: Link containing token (shown once)
+  A-->>O: Link /saksi#token (token only in the fragment, shown once)
   O->>T: Send link by chat or SMS
   T->>A: Open link
   A->>D: Look up SHA-256(token), check expiry and status
