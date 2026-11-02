@@ -1,6 +1,6 @@
-# Paper Trail Format Specification — Draft v0.1
+# Paper Trail Format Specification — Draft v0.2
 
-Status: **draft, pre-alpha**. Nothing here is frozen. Items marked **[OPEN]** are decisions
+Status: **draft, pre-alpha**. Nothing here is frozen. Changes from v0.1 are listed in §10. Items marked **[OPEN]** are decisions
 tracked in [OPEN_DECISIONS.md](OPEN_DECISIONS.md). The key words MUST, SHOULD and MAY are used as in RFC 2119.
 
 This document defines what is hashed, signed, anchored and exported, and how a third party verifies it.
@@ -11,15 +11,15 @@ It is written so that `packages/chain` and `packages/verifier` can be implemente
 
 ## 1. Conventions
 
-| Topic          | Rule                                                                                                                                                          |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Canonical JSON | JCS, RFC 8785. Hashed objects MUST NOT contain floating-point numbers, `null`, or duplicate keys. Only integers (`v`, `seq`, `size`) are numeric.             |
-| Hash           | SHA-256 over the UTF-8 bytes of the canonical form.                                                                                                           |
-| Hash encoding  | 64 characters, lowercase hex. Never uppercase, never prefixed.                                                                                                |
-| Timestamps     | `YYYY-MM-DDTHH:mm:ss.sssZ` (UTC, millisecond precision, always `Z`). Always assigned by the server. A client-supplied time is never stored in a hashed field. |
-| Text           | Free text is normalized to Unicode NFC by the server before hashing. The hash covers the stored, normalized value.                                            |
-| IDs            | `ledger_id` is a lowercase UUID string.                                                                                                                       |
-| Binary         | Binary values inside JSON (keys, signatures, DER) are base64url without padding.                                                                              |
+| Topic          | Rule                                                                                                                                                                                                                                                                                                             |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Canonical JSON | JCS, RFC 8785. Hashed objects MUST NOT contain floating-point numbers, `null`, or duplicate keys. Numbers MUST be integers in the safe range ±(2^53 − 1).                                                                                                                                                        |
+| Hash           | SHA-256 over the UTF-8 bytes of the canonical form.                                                                                                                                                                                                                                                              |
+| Hash encoding  | 64 characters, lowercase hex. Never uppercase, never prefixed.                                                                                                                                                                                                                                                   |
+| Timestamps     | `YYYY-MM-DDTHH:mm:ss.sssZ` (UTC, millisecond precision, always `Z`). Always assigned by the server. A client-supplied time is never stored in a hashed field. If the server clock reads earlier than the head entry, the server uses the head's `created_at` (never earlier), so `created_at` is non-decreasing. |
+| Text           | Free text is normalized to Unicode NFC by the server before hashing. The hash covers the stored, normalized value.                                                                                                                                                                                               |
+| IDs            | `ledger_id` is a lowercase UUID string.                                                                                                                                                                                                                                                                          |
+| Binary         | Binary values inside JSON (keys, signatures, DER) are base64url without padding.                                                                                                                                                                                                                                 |
 
 ## 2. Ledger and entry
 
@@ -28,16 +28,16 @@ A **ledger** is one append-only chain owned by one user (for example, one disput
 
 ### 2.1 Entry envelope (the hashed part)
 
-| Field          | Type    | Description                                                                                                                |
-| -------------- | ------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `v`            | integer | Entry format version. `1` in this draft.                                                                                   |
-| `ledger_id`    | string  | UUID of the ledger. Binding it into the hash prevents splicing an entry into another ledger.                               |
-| `seq`          | integer | Position in the ledger. `0` for the first entry. Each next entry is exactly previous `seq + 1`.                            |
-| `type`         | string  | One of `note`, `photo`, `file`, `witness_cosign` (see §3).                                                                 |
-| `created_at`   | string  | Server time of creation.                                                                                                   |
-| `author_ref`   | string  | Opaque pseudonymous reference to the author: `owner:<id>` or `witness:<key-fingerprint>`. MUST NOT contain email or phone. |
-| `payload_hash` | string  | SHA-256 of the canonical payload (see §3). Lets an export hide a payload while keeping the chain verifiable.               |
-| `prev_hash`    | string  | `entry_hash` of entry `seq - 1`. For `seq = 0`, the genesis value (§2.3).                                                  |
+| Field          | Type    | Description                                                                                                                                                                    |
+| -------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `v`            | integer | Entry format version. `1` in this draft.                                                                                                                                       |
+| `ledger_id`    | string  | UUID of the ledger. Binding it into the hash prevents splicing an entry into another ledger.                                                                                   |
+| `seq`          | integer | Position in the ledger. `0` for the first entry. Each next entry is exactly previous `seq + 1`.                                                                                |
+| `type`         | string  | One of `note`, `photo`, `file`, `witness_cosign` (see §3).                                                                                                                     |
+| `created_at`   | string  | Server time of creation.                                                                                                                                                       |
+| `author_ref`   | string  | Pseudonymous author reference matching `^(owner\|witness):[0-9a-f-]{1,128}$`: `owner:<user uuid>` or `witness:<key fingerprint>`. The grammar makes email or phone impossible. |
+| `payload_hash` | string  | SHA-256 of the canonical payload (see §3). Lets an export hide a payload while keeping the chain verifiable.                                                                   |
+| `prev_hash`    | string  | `entry_hash` of entry `seq - 1`. For `seq = 0`, the genesis value (§2.3).                                                                                                      |
 
 ### 2.2 Entry hash
 
@@ -255,7 +255,7 @@ independent findings (anchors, witnesses) that can be evaluated.
 2. **Genesis.** `entries[0].seq == 0`, `prev_hash` is 64 zeros, type is not `witness_cosign`. Else `GENESIS_INVALID`.
 3. **For each entry `i` in order:**
    1. `seq == i`, else `SEQ_GAP`.
-   2. `ledger_id` equals the pack's `ledger.id`, else `LEDGER_MISMATCH`.
+   2. `ledger_id` equals the pack's `ledger.id` (or, for a bare chain, the ledger of entry 0), else `LEDGER_MISMATCH`.
    3. `prev_hash` equals `entries[i-1].entry_hash` (genesis for `i = 0`), else `BROKEN_AT_SEQ` (detail: link).
    4. Recompute `entry_hash` from the envelope with JCS + SHA-256; compare, else `BROKEN_AT_SEQ` (detail: hash).
    5. If `payload` is present, recompute `SHA256(JCS(payload))`; compare with `payload_hash`, else `PAYLOAD_HASH_MISMATCH`.
@@ -284,3 +284,32 @@ independent findings (anchors, witnesses) that can be evaluated.
 - Entry `v`, anchor `v`, and pack `format_version` evolve independently.
 - A change that alters any hashed byte requires a new `v`. Old versions remain verifiable.
 - `0.x` pack versions carry no stability promise.
+
+## 10. Changes
+
+**v0.2** (no change to how any existing valid entry is hashed; entry `v` stays `1`):
+
+- `author_ref` has a fixed grammar (§2.1) instead of being free-form.
+- Payload numbers MUST be safe integers (§1); v0.1 only said "no floats".
+- Server clock clamp: `created_at` never goes below the head's `created_at` (§1).
+- `LEDGER_MISMATCH` for a bare chain is checked against entry 0 (§8 step 3.2).
+- Verification of a chain is defined to stop at the first chain error; `brokenAtSeq` is the chain position
+  (the expected `seq`) where it stopped.
+- Appendix A adds a test vector.
+
+## Appendix A. Test vector
+
+Inputs: `ledger_id = 6f1c0a52-3d1e-4b0a-9f55-0c7d6a2e8b11`, `seq = 0`, `type = note`,
+`created_at = 2026-11-02T11:20:00.000Z`, `author_ref = owner:9d2f4c1a`,
+payload `{"text":"Atasan menolak membayar lembur."}`.
+
+```
+JCS(payload)  = {"text":"Atasan menolak membayar lembur."}
+payload_hash  = c8c6d06f3e1cc1e4a1b01ea8ffe0ec652c596a6518c08fdce704ffddd404bedb
+
+JCS(envelope) = {"author_ref":"owner:9d2f4c1a","created_at":"2026-11-02T11:20:00.000Z","ledger_id":"6f1c0a52-3d1e-4b0a-9f55-0c7d6a2e8b11","payload_hash":"c8c6d06f3e1cc1e4a1b01ea8ffe0ec652c596a6518c08fdce704ffddd404bedb","prev_hash":"0000000000000000000000000000000000000000000000000000000000000000","seq":0,"type":"note","v":1}
+entry_hash    = a423b1287ae37ea5e0f675aad051408898f526a272cc8863f11d1177be723950
+```
+
+Reproduce without any Paper Trail code: `printf '%s' '<JCS string>' | shasum -a 256`.
+`packages/chain` pins this vector in `chain.test.ts`.

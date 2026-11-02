@@ -75,10 +75,21 @@ sequenceDiagram
   W-->>O: Show receipt, suggest keeping a copy
 ```
 
-Two concurrent requests queue on the lock; the loser reads the new head and gets `seq + 1`. If the lock were ever
-bypassed, `UNIQUE(ledger_id, seq)` makes the second insert fail instead of forking. A concurrency test is
-mandatory when this is implemented. Triggers reject `UPDATE`/`DELETE` on entries; the head row is a pointer
-and is not evidence.
+Implemented in `apps/api/src/services/ledger.ts` (`appendEntry`), the only code path that writes entries.
+Fork prevention has three independent layers:
+
+1. **Row lock.** `SELECT … FROM ledgers WHERE id = $1 FOR UPDATE` inside the transaction. Concurrent appends to
+   the same ledger queue on it; each one reads the head only after the previous one committed, so it gets
+   `seq + 1`. Appends to other ledgers lock other rows and are not blocked.
+2. **Insert trigger** (`entries_check_link`). An entry with `seq > 0` is rejected unless entry `seq − 1` exists
+   in the same ledger with `entry_hash = prev_hash` and an earlier-or-equal `created_at`. Gaps and dangling
+   links are impossible even for code or SQL that skips `appendEntry`.
+3. **`UNIQUE(ledger_id, seq)`.** Two entries can never share a position, so a fork cannot be stored.
+
+The ledger head (`head_seq`, `head_hash`) is a cached pointer, not evidence; a trigger lets it advance only by
+exactly one, to an entry that exists. Triggers reject `UPDATE`, `DELETE` and `TRUNCATE` on `entries`,
+`attachments` and `witnesses`, freeze the anchored head of `anchors`, and stop re-targeting witness invites.
+Integration tests (`ledger.int.test.ts`) cover 50 parallel appends, cross-ledger independence and each guard.
 
 ## 3. Flow: witness co-sign
 
