@@ -1,0 +1,19 @@
+{
+  "name": "@paper-trail/verifier",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Verifier library and CLI for Paper Trail evidence packs.",
+  "author": "Vassel Goleyu",
+  "license": "UNLICENSED",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "papertrail-verify": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  }
+}
