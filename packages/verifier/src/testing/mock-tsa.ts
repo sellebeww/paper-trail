@@ -6,7 +6,7 @@ import type { AddressInfo } from 'node:net';
 import { webcrypto } from 'node:crypto';
 import * as asn1js from 'asn1js';
 import * as pkijs from 'pkijs';
-import { OID, toPem } from '../tsa.js';
+import { OID, toPem } from '../timestamp.js';
 
 export type MockTsaMode =
   | 'ok'
@@ -258,3 +258,27 @@ export const createMockTsa = async (port = 0) => {
 };
 
 export type MockTsa = Awaited<ReturnType<typeof createMockTsa>>;
+
+/** Asks a TSA (normally the mock) to timestamp `data` and returns the TimeStampToken DER. For tests and demos. */
+export const fetchMockToken = async (url: string, data: Uint8Array): Promise<Buffer> => {
+  const nonce = Buffer.from([1, 2, 3, 4, 5, 6, 7, 8]);
+  const req = new pkijs.TimeStampReq({
+    version: 1,
+    messageImprint: new pkijs.MessageImprint({
+      hashAlgorithm: new pkijs.AlgorithmIdentifier({
+        algorithmId: OID.sha256,
+        algorithmParams: new asn1js.Null(),
+      }),
+      hashedMessage: new asn1js.OctetString({
+        valueHex: await webcrypto.subtle.digest('SHA-256', data as Uint8Array<ArrayBuffer>),
+      }),
+    }),
+    nonce: new asn1js.Integer({ valueHex: nonce }),
+    certReq: true,
+  });
+  const res = await fetch(url, { method: 'POST', body: Buffer.from(req.toSchema().toBER(false)) });
+  const resp = pkijs.TimeStampResp.fromBER(await res.arrayBuffer());
+  if (resp.status.status !== 0 || !resp.timeStampToken)
+    throw new Error(`mock TSA refused (status ${resp.status.status})`);
+  return Buffer.from(resp.timeStampToken.toSchema().toBER(false));
+};

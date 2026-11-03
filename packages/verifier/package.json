@@ -6,8 +6,6 @@
   "author": "Vassel Goleyu",
   "license": "UNLICENSED",
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
   "bin": {
     "papertrail-verify": "./dist/cli.js"
   },
@@ -15,5 +13,26 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@paper-trail/chain": "workspace:*",
+    "asn1js": "^4.0.0",
+    "fflate": "^0.8.3",
+    "pkijs": "^4.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6"
+  },
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "source": "./src/index.ts",
+      "default": "./dist/index.js"
+    },
+    "./testing": {
+      "types": "./src/testing/mock-tsa.ts",
+      "source": "./src/testing/mock-tsa.ts",
+      "default": "./dist/testing/mock-tsa.js"
+    }
   }
 }
