@@ -291,4 +291,80 @@ describe('owner flow', () => {
 
     expect(pageErrors.map((e) => e.message)).toEqual([]);
   });
+
+  it('verify email → forgot password → reset → log in with the new password', async () => {
+    await context.clearCookies(); // the previous test left this browser logged in
+    const page = await context.newPage();
+    const pageErrors: Error[] = [];
+    page.on('pageerror', (e) => pageErrors.push(e));
+    const email = `rina-${Date.now()}@example.test`;
+    const NEW_PASSWORD = 'kata-sandi-baru-yang-panjang';
+
+    /** The link in the newest mail to `email`, read from the API's console mailer (development only). */
+    const linkFor = (subject: RegExp) =>
+      vi.waitFor(
+        () => {
+          const log = children.find((c) => c.name === 'api')!.log.join('');
+          for (const line of log.split('\n').reverse()) {
+            if (!line.includes('"mail (console mailer')) continue;
+            const mail = JSON.parse(line) as { to: string; subject: string; text: string };
+            if (mail.to !== email || !subject.test(mail.subject)) continue;
+            return /https?:\/\/\S+#[\w-]{43}/.exec(mail.text)![0];
+          }
+          throw new Error('mail not sent yet');
+        },
+        { timeout: 15_000, interval: 100 },
+      );
+
+    // Sign up: the app asks for verification, and the mail carries the token in the URL fragment.
+    await page.goto(url);
+    await button(page, 'Daftar').click();
+    await page.getByLabel('Email').fill(email);
+    await page.getByLabel('Kata sandi').fill(PASSWORD);
+    await button(page, 'Buat akun').click();
+    await page.getByRole('heading', { name: 'Ledger saya' }).waitFor();
+    await page.getByText(/Email Anda belum diverifikasi/).waitFor();
+
+    const verifyLink = await linkFor(/Verifikasi email/);
+    expect(new URL(verifyLink).pathname).toBe('/konfirmasi-email');
+    await page.goto(verifyLink);
+    await page.getByText('Email Anda sudah terverifikasi').waitFor();
+    expect(page.url()).not.toContain('#'); // the token is removed from the address bar
+    await link(page, 'Ke Paper Trail').click();
+    await page.getByRole('heading', { name: 'Ledger saya' }).waitFor();
+    expect(await page.getByText(/Email Anda belum diverifikasi/).count()).toBe(0);
+
+    // The same link cannot be used again.
+    await page.goto(verifyLink);
+    await page.getByText(/tidak berlaku atau sudah dipakai/).waitFor();
+
+    // Forgot password → mail → choose a new password.
+    await page.goto(url);
+    await button(page, 'Keluar').click();
+    await page.getByRole('link', { name: 'Lupa kata sandi?' }).click();
+    await page.getByLabel('Email').fill(email);
+    await button(page, 'Kirim tautan').click();
+    await page.getByText(/tautan sudah dikirim/).waitFor();
+
+    const resetLink = await linkFor(/Atur ulang kata sandi/);
+    await page.goto(resetLink);
+    await page.getByRole('heading', { name: 'Pilih kata sandi baru' }).waitFor();
+    expect(page.url()).not.toContain('#');
+    await page.getByLabel('Kata sandi baru').fill(NEW_PASSWORD);
+    await button(page, 'Simpan kata sandi baru').click();
+    await page.getByText(/Kata sandi sudah diganti/).waitFor();
+
+    // The old password no longer works, the new one does.
+    await link(page, 'Masuk').click();
+    await page.getByLabel('Email').fill(email);
+    await page.getByLabel('Kata sandi').fill(PASSWORD);
+    await button(page, 'Masuk ke akun').click();
+    await page.getByText('Email atau kata sandi salah.').waitFor();
+    await page.getByLabel('Kata sandi').fill(NEW_PASSWORD);
+    await button(page, 'Masuk ke akun').click();
+    await page.getByRole('heading', { name: 'Ledger saya' }).waitFor();
+
+    expect(pageErrors.map((e) => e.message)).toEqual([]);
+    await page.close();
+  });
 });

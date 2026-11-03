@@ -6,7 +6,7 @@ const BASE = '/api';
 export const CATEGORIES = ['kerja', 'sewa', 'freelance', 'gig', 'lainnya'] as const;
 export type Category = (typeof CATEGORIES)[number];
 
-export type User = { id: string; email: string; created_at: string };
+export type User = { id: string; email: string; email_verified: boolean; created_at: string };
 /** An entry as the owner API returns it: hashed fields plus the convenience `id`, payload always present. */
 export type ApiEntry = Omit<Entry, 'payload'> & { id: string; payload: PayloadObject };
 

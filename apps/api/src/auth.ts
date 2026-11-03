@@ -37,7 +37,7 @@ const safeEqual = (a: string, b: string): boolean => {
 export interface AuthState {
   sessionId: string;
   csrfToken: string;
-  user: { id: string; email: string; createdAt: Date };
+  user: { id: string; email: string; createdAt: Date; emailVerifiedAt: Date | null };
 }
 
 export const getAuth = (res: Response): AuthState | undefined =>
@@ -82,6 +82,79 @@ export const clearAuthCookies = (res: Response, config: Config) => {
   res.clearCookie(CSRF_COOKIE, { ...cookieBase(config), httpOnly: false });
 };
 
+export type UserTokenKind = 'verify_email' | 'reset_password';
+const TOKEN_TTL_MS: Record<UserTokenKind, number> = {
+  verify_email: 24 * 3_600_000,
+  reset_password: 3_600_000,
+};
+/** One mail per kind per user per minute: stops the form being used to flood someone's inbox. */
+const RESEND_COOLDOWN_MS = 60_000;
+const TOKEN_SHAPE = /^[A-Za-z0-9_-]{43}$/; // 32 random bytes, base64url
+
+export const isTokenShape = (token: string): boolean => TOKEN_SHAPE.test(token);
+
+/**
+ * Issues a one-time token and invalidates earlier unused ones of the same kind, so only the newest link works.
+ * Returns null when one was issued less than a minute ago (the caller then sends nothing).
+ */
+export const issueUserToken = async (
+  db: Db,
+  userId: string,
+  kind: UserTokenKind,
+): Promise<string | null> => {
+  const token = newToken();
+  // The advisory lock serializes concurrent requests for the same user and kind, so the cooldown check and the
+  // insert cannot interleave (otherwise a burst of requests would each pass the check and each send a mail).
+  const issued = await db.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`${userId}:${kind}`}))`;
+    const recent = await tx.userToken.findFirst({
+      where: { userId, kind, createdAt: { gt: new Date(Date.now() - RESEND_COOLDOWN_MS) } },
+      select: { id: true },
+    });
+    if (recent) return false;
+    await tx.userToken.deleteMany({ where: { userId, kind, usedAt: null } });
+    await tx.userToken.create({
+      data: {
+        userId,
+        kind,
+        tokenHash: sha256Hex(token),
+        expiresAt: new Date(Date.now() + TOKEN_TTL_MS[kind]),
+      },
+    });
+    return true;
+  });
+  if (!issued) return null;
+  return token;
+};
+
+/**
+ * Uses a token up, exactly once, and returns whose it was. A single UPDATE decides: of two parallel requests with the
+ * same token one gets the row, the other gets nothing. Pass a transaction client to tie it to other writes.
+ */
+export const consumeUserToken = async (
+  db: Pick<Db, '$queryRaw'>,
+  token: string,
+  kind: UserTokenKind,
+): Promise<string | null> => {
+  if (!isTokenShape(token)) return null;
+  const rows = await db.$queryRaw<{ user_id: string }[]>`
+    UPDATE user_tokens SET used_at = now()
+    WHERE token_hash = ${sha256Hex(token)} AND kind = ${kind}::user_token_kind
+      AND used_at IS NULL AND expires_at > now()
+    RETURNING user_id::text AS user_id`;
+  return rows[0]?.user_id ?? null;
+};
+
+/** Removes spent and long-expired tokens. */
+export const purgeUserTokens = async (db: Db): Promise<number> =>
+  (
+    await db.userToken.deleteMany({
+      where: {
+        OR: [{ usedAt: { not: null } }, { expiresAt: { lt: new Date(Date.now() - 86_400_000) } }],
+      },
+    })
+  ).count;
+
 /** Deletes sessions past their expiry (they are otherwise removed only when someone presents them). */
 export const purgeExpiredSessions = async (db: Db): Promise<number> =>
   (await db.session.deleteMany({ where: { expiresAt: { lt: new Date() } } })).count;
@@ -97,11 +170,11 @@ export const loadSession =
         include: { user: true },
       });
       if (session && session.expiresAt > new Date()) {
-        const { id, email, createdAt } = session.user;
+        const { id, email, createdAt, emailVerifiedAt } = session.user;
         res.locals['auth'] = {
           sessionId: session.id,
           csrfToken: session.csrfToken,
-          user: { id, email, createdAt },
+          user: { id, email, createdAt, emailVerifiedAt },
         } satisfies AuthState;
       } else if (session) {
         await db.session.delete({ where: { id: session.id } }).catch(() => undefined);

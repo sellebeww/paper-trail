@@ -38,6 +38,8 @@ First public pre-alpha. The format is stable (SPEC 1.0); the software is not pro
 
 ### Changed
 
+- Email verification and password reset (one-time links by mail; reset only for verified addresses; reset signs out every
+  session). Unverified accounts keep working and see a banner.
 - Uploaded files are stored on local disk by default (`STORAGE_DIR`); S3 is optional. Expired sessions are purged hourly.
   The api image is about 500 MB (the Prisma CLI is removed from it).
 - Licensed under **Apache-2.0** (code and specification); previously an "all rights reserved" placeholder.
@@ -69,7 +71,7 @@ Read these before relying on Paper Trail for anything real.
 - **No time-stamping authority is configured.** You must choose one and check its terms; the bundled mock TSA (demo,
   tests) proves nothing.
 - Not independently audited; the security review is a self-review.
-- No email verification or password reset; registration reveals whether an email is already registered.
+- Registration reveals whether an email is already registered. Production needs an SMTP server for account mail.
 - Rate limits are in memory, per process: run one API instance. No high-availability setup.
 - Uploaded files live on the API host's disk (`FsStore`): single host only, back them up with the database. The S3
   client (for several hosts) is tested against an in-memory store only, not against a running S3 service.

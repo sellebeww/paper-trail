@@ -1,9 +1,9 @@
 // Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
-import { Component, useEffect, useRef, type ReactNode } from 'react';
+import { Component, useEffect, useRef, useState, type ReactNode } from 'react';
 import './owner.css';
 import { api } from './lib/api';
 import { I18nProvider, useI18n } from './lib/i18n';
-import { clearQueries, setQueryData } from './lib/query';
+import { clearQueries, setQueryData, useAction } from './lib/query';
 import { Link, Router, Routes, useNavigate, usePath, type Route } from './lib/router';
 import { useMe } from './lib/session';
 import { AboutPage } from './pages/About';
@@ -12,6 +12,7 @@ import { ExportPage } from './pages/Export';
 import { LedgerPage } from './pages/Ledger';
 import { LedgersPage } from './pages/Ledgers';
 import { LoginPage } from './pages/Login';
+import { ForgotPasswordPage, ResetPasswordPage, VerifyEmailPage } from './pages/Recovery';
 import { WitnessPanelPage } from './pages/WitnessPanel';
 import { ErrorBox, Loading } from './ui';
 
@@ -38,6 +39,9 @@ const routes: Route[] = [
     ),
   },
   { path: '/masuk', render: () => <LoginPage /> },
+  { path: '/lupa-sandi', render: () => <ForgotPasswordPage /> },
+  { path: '/atur-ulang-sandi', render: () => <ResetPasswordPage /> },
+  { path: '/konfirmasi-email', render: () => <VerifyEmailPage /> },
   { path: '/tentang', render: () => <AboutPage /> },
   {
     path: '/ledger/:id',
@@ -82,6 +86,32 @@ function NotFound() {
         <Link to="/">{t('notfound.home')}</Link>
       </p>
     </section>
+  );
+}
+
+/** Shown to signed-in owners whose email is not verified: password reset only works for verified addresses. */
+function VerifyBanner() {
+  const { t, errorText } = useI18n();
+  const [sent, setSent] = useState(false);
+  const send = useAction(async () => {
+    await api.post('/auth/verify-email/request');
+    setSent(true);
+  });
+  return (
+    <div className="banner" role="status">
+      <p>{sent ? t('recover.bannerSent') : t('recover.bannerText')}</p>
+      {!sent && (
+        <button
+          type="button"
+          className="btn"
+          disabled={send.pending}
+          onClick={() => void send.run()}
+        >
+          {send.pending ? t('state.sending') : t('recover.bannerSend')}
+        </button>
+      )}
+      {send.error != null && <p role="alert">{errorText(send.error)}</p>}
+    </div>
   );
 }
 
@@ -135,6 +165,7 @@ function Shell() {
           )}
         </nav>
       </header>
+      {me.data && !me.data.email_verified && <VerifyBanner />}
       <main id="main" tabIndex={-1} ref={main} className="page">
         <Routes routes={routes} fallback={<NotFound />} />
       </main>

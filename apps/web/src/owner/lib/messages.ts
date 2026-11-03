@@ -40,6 +40,7 @@ export const id = {
   'code.INVALID_RANGE': 'Rentang nomor tidak valid untuk ledger ini.',
   'code.EXPORT_TOO_LARGE': 'Lampiran terlalu besar untuk satu ekspor. Coba tanpa berkas.',
   'code.NOT_FOUND': 'Data tidak ditemukan.',
+  'code.TOKEN_INVALID': 'Tautan ini tidak berlaku atau sudah dipakai. Minta tautan baru.',
 
   'notfound.title': 'Halaman tidak ditemukan.',
   'notfound.home': 'Ke daftar ledger',
@@ -60,11 +61,36 @@ export const id = {
   'auth.tabRegister': 'Daftar',
   'auth.email': 'Email',
   'auth.password': 'Kata sandi',
-  'auth.passwordHint': 'Minimal 10 karakter. Belum ada fitur reset kata sandi, simpan baik-baik.',
+  'auth.passwordHint': 'Minimal 10 karakter.',
   'auth.submitLogin': 'Masuk ke akun',
   'auth.submitRegister': 'Buat akun',
   'auth.honest':
-    'Email belum diverifikasi dan kata sandi yang lupa belum bisa dipulihkan. Layanan ini masih tahap awal.',
+    'Verifikasi email Anda setelah mendaftar; hanya email terverifikasi yang bisa memulihkan kata sandi. Layanan ini masih tahap awal.',
+
+  'recover.forgot': 'Lupa kata sandi?',
+  'recover.forgotTitle': 'Lupa kata sandi',
+  'recover.forgotLede':
+    'Masukkan email akun Anda. Jika email itu sudah terverifikasi, kami kirim tautan untuk memilih kata sandi baru.',
+  'recover.forgotSubmit': 'Kirim tautan',
+  'recover.forgotSent':
+    'Jika email itu terdaftar dan sudah diverifikasi, tautan sudah dikirim. Cek kotak masuk dan folder spam; tautan berlaku 1 jam. Email yang belum diverifikasi tidak bisa memakai fitur ini.',
+  'recover.backToLogin': 'Kembali ke halaman masuk',
+  'recover.resetTitle': 'Pilih kata sandi baru',
+  'recover.resetLede': 'Setelah ini semua perangkat yang sedang masuk akan dikeluarkan.',
+  'recover.newPassword': 'Kata sandi baru',
+  'recover.resetSubmit': 'Simpan kata sandi baru',
+  'recover.resetDone': 'Kata sandi sudah diganti. Silakan masuk dengan kata sandi baru.',
+  'recover.toLogin': 'Masuk',
+  'recover.noToken':
+    'Tautan tidak lengkap. Buka tautan dari email dengan utuh, atau minta yang baru.',
+  'recover.askAgain': 'Minta tautan baru',
+  'recover.verifyTitle': 'Verifikasi email',
+  'recover.verifyDone': 'Email Anda sudah terverifikasi. Terima kasih.',
+  'recover.toApp': 'Ke Paper Trail',
+  'recover.bannerText':
+    'Email Anda belum diverifikasi. Tanpa itu, kata sandi yang lupa tidak bisa dipulihkan.',
+  'recover.bannerSend': 'Kirim tautan verifikasi',
+  'recover.bannerSent': 'Tautan dikirim. Cek email Anda (berlaku 24 jam).',
 
   'ledgers.title': 'Ledger saya',
   'ledgers.new': 'Ledger baru',
@@ -312,6 +338,7 @@ export const en: Record<MessageKey, string> = {
   'code.INVALID_RANGE': 'That number range is not valid for this ledger.',
   'code.EXPORT_TOO_LARGE': 'The attachments are too large for one export. Try without files.',
   'code.NOT_FOUND': 'Not found.',
+  'code.TOKEN_INVALID': 'This link is invalid or has already been used. Request a new one.',
 
   'notfound.title': 'Page not found.',
   'notfound.home': 'Go to ledgers',
@@ -332,11 +359,36 @@ export const en: Record<MessageKey, string> = {
   'auth.tabRegister': 'Sign up',
   'auth.email': 'Email',
   'auth.password': 'Password',
-  'auth.passwordHint': 'At least 10 characters. There is no password reset yet, so keep it safe.',
+  'auth.passwordHint': 'At least 10 characters.',
   'auth.submitLogin': 'Log in to account',
   'auth.submitRegister': 'Create account',
   'auth.honest':
-    'Emails are not verified yet and a forgotten password cannot be recovered. This service is at an early stage.',
+    'Verify your email after signing up: only a verified email can recover a forgotten password. This service is at an early stage.',
+
+  'recover.forgot': 'Forgot password?',
+  'recover.forgotTitle': 'Forgot password',
+  'recover.forgotLede':
+    'Enter your account email. If it is verified, we send a link to choose a new password.',
+  'recover.forgotSubmit': 'Send link',
+  'recover.forgotSent':
+    'If that email is registered and verified, a link is on its way. Check your inbox and spam folder; the link is valid for 1 hour. Unverified emails cannot use this feature.',
+  'recover.backToLogin': 'Back to log in',
+  'recover.resetTitle': 'Choose a new password',
+  'recover.resetLede': 'Every device that is currently logged in will be signed out.',
+  'recover.newPassword': 'New password',
+  'recover.resetSubmit': 'Save new password',
+  'recover.resetDone': 'Your password has been changed. Please log in with the new one.',
+  'recover.toLogin': 'Log in',
+  'recover.noToken':
+    'The link is incomplete. Open the whole link from the email, or request a new one.',
+  'recover.askAgain': 'Request a new link',
+  'recover.verifyTitle': 'Verify email',
+  'recover.verifyDone': 'Your email is verified. Thank you.',
+  'recover.toApp': 'Go to Paper Trail',
+  'recover.bannerText':
+    'Your email is not verified. Without it, a forgotten password cannot be recovered.',
+  'recover.bannerSend': 'Send verification link',
+  'recover.bannerSent': 'Link sent. Check your email (valid for 24 hours).',
 
   'ledgers.title': 'My ledgers',
   'ledgers.new': 'New ledger',

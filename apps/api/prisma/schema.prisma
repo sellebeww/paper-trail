@@ -32,6 +32,13 @@ enum EntryType {
   @@map("entry_type")
 }
 
+enum UserTokenKind {
+  verify_email
+  reset_password
+
+  @@map("user_token_kind")
+}
+
 enum AnchorStatus {
   pending
   ok
@@ -41,15 +48,35 @@ enum AnchorStatus {
 }
 
 model User {
-  id           String   @id @default(uuid()) @db.Uuid
-  email        String   @unique @db.VarChar(254)
-  passwordHash String   @map("password_hash")
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  ledgers      Ledger[]
-  sessions     Session[]
-  reminders    ReminderSchedule[]
+  id              String             @id @default(uuid()) @db.Uuid
+  email           String             @unique @db.VarChar(254)
+  passwordHash    String             @map("password_hash")
+  /// Set when the owner clicks the link we emailed, or completes a password reset by email. Password reset only works
+  /// for verified addresses, so a typo at sign-up cannot hand an account to a stranger.
+  emailVerifiedAt DateTime?          @map("email_verified_at") @db.Timestamptz(3)
+  createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  tokens          UserToken[]
+  ledgers         Ledger[]
+  sessions        Session[]
+  reminders       ReminderSchedule[]
 
   @@map("users")
+}
+
+/// One-time links for email verification and password reset. Only the SHA-256 of the token is stored.
+model UserToken {
+  id        String        @id @default(uuid()) @db.Uuid
+  userId    String        @map("user_id") @db.Uuid
+  kind      UserTokenKind
+  tokenHash String        @unique @map("token_hash") @db.Char(64)
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  expiresAt DateTime      @map("expires_at") @db.Timestamptz(3)
+  usedAt    DateTime?     @map("used_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, kind])
+  @@map("user_tokens")
 }
 
 /// "Remind me to write things down": weekly days + local time. Read and advanced by the worker.
@@ -117,7 +144,7 @@ model Ledger {
   headHash  String?        @map("head_hash") @db.Char(64)
   createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
 
-  owner     User            @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  owner     User               @relation(fields: [ownerId], references: [id], onDelete: Restrict)
   entries   Entry[]
   invites   WitnessInvite[]
   witnesses Witness[]
@@ -177,16 +204,16 @@ model Attachment {
 
 /// A one-time witness link. Only SHA-256(token) is stored.
 model WitnessInvite {
-  id            String    @id @default(uuid()) @db.Uuid
-  ledgerId      String    @map("ledger_id") @db.Uuid
-  targetEntryId String    @map("target_entry_id") @db.Uuid
-  tokenHash     String    @unique @map("token_hash") @db.Char(64)
-  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
-  expiresAt     DateTime  @map("expires_at") @db.Timestamptz(3)
-  usedAt        DateTime? @map("used_at") @db.Timestamptz(3)
-  revokedAt     DateTime? @map("revoked_at") @db.Timestamptz(3)
+  id               String    @id @default(uuid()) @db.Uuid
+  ledgerId         String    @map("ledger_id") @db.Uuid
+  targetEntryId    String    @map("target_entry_id") @db.Uuid
+  tokenHash        String    @unique @map("token_hash") @db.Char(64)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  expiresAt        DateTime  @map("expires_at") @db.Timestamptz(3)
+  usedAt           DateTime? @map("used_at") @db.Timestamptz(3)
+  revokedAt        DateTime? @map("revoked_at") @db.Timestamptz(3)
   /// The only owner identity shown to the witness, chosen by the owner for this invite.
-  ownerDisplayName String? @map("owner_display_name") @db.VarChar(80)
+  ownerDisplayName String?   @map("owner_display_name") @db.VarChar(80)
 
   ledger      Ledger   @relation(fields: [ledgerId], references: [id], onDelete: Restrict)
   targetEntry Entry    @relation("InviteTarget", fields: [ledgerId, targetEntryId], references: [ledgerId, id], onDelete: Restrict, onUpdate: Restrict)

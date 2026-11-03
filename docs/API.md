@@ -72,13 +72,23 @@ taken from the server clock; no endpoint accepts a client timestamp.
 
 ### Auth
 
-| Method & path         | Body                  | Response                                                                                                |
-| --------------------- | --------------------- | ------------------------------------------------------------------------------------------------------- |
-| `GET /auth/csrf`      | –                     | `200 { csrf_token }` (sets `pt_csrf` if logged out)                                                     |
-| `POST /auth/register` | `{ email, password }` | `201 { user, csrf_token }` + cookies. Password 10–128 chars, hashed with argon2id. Email is lowercased. |
-| `POST /auth/login`    | `{ email, password }` | `200 { user, csrf_token }` + cookies                                                                    |
-| `POST /auth/logout`   | –                     | `204`. Deletes the session server-side and clears cookies.                                              |
-| `GET /auth/me`        | –                     | `200 { user: { id, email, created_at }, csrf_token }`                                                   |
+| Method & path                       | Body                  | Response                                                                                                                          |
+| ----------------------------------- | --------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /auth/csrf`                    | –                     | `200 { csrf_token }` (sets `pt_csrf` if logged out)                                                                               |
+| `POST /auth/register`               | `{ email, password }` | `201 { user, csrf_token }` + cookies. Password 10–128 chars, hashed with argon2id. Email is lowercased.                           |
+| `POST /auth/login`                  | `{ email, password }` | `200 { user, csrf_token }` + cookies                                                                                              |
+| `POST /auth/logout`                 | –                     | `204`. Deletes the session server-side and clears cookies.                                                                        |
+| `GET /auth/me`                      | –                     | `200 { user: { id, email, email_verified, created_at }, csrf_token }`                                                             |
+| `POST /auth/verify-email/request`   | – (logged in)         | `202 { sent }`, or `200 { already_verified }`. Mails a new link; at most one per minute.                                          |
+| `POST /auth/verify-email`           | `{ token }`           | `200 { verified }`. `400 TOKEN_INVALID` for an unknown, used or expired token. No login needed.                                   |
+| `POST /auth/password-reset/request` | `{ email }`           | Always `202 { accepted }`, whatever the address. A link is mailed only if the address belongs to an account **and is verified**.  |
+| `POST /auth/password-reset`         | `{ token, password }` | `200 { reset }`, or `400 TOKEN_INVALID`. Sets the password, signs out every session of that account and marks the email verified. |
+
+Account links (`/konfirmasi-email#<token>`, `/atur-ulang-sandi#<token>`) carry a 256-bit one-time token in the URL fragment;
+only its SHA-256 is stored. Verification links last 24 hours, reset links 1 hour; asking again invalidates the earlier link.
+Mail is sent by the API itself (`MAILER=smtp`, `SMTP_URL`, `SMTP_FROM`); the default `console` mailer prints links to the log
+for development and is refused when `NODE_ENV=production`. Unverified accounts work normally; only password reset needs
+a verified address (a typo at sign-up must not hand the account to a stranger).
 
 ### Ledgers
 
@@ -249,8 +259,8 @@ The full v0.1.0 review is in [SECURITY.md](SECURITY.md).
 
 ## Known gaps (roadmap)
 
-- **Email verification and password reset** are not implemented. Registration therefore reveals whether an email is
-  taken (`EMAIL_TAKEN`) and accounts are not tied to a verified address.
+- Registration reveals whether an email is taken (`EMAIL_TAKEN`), so it can be used to test whether someone has an
+  account. Password reset and verification do not leak this.
 - **Rate limiting is per process and in memory.** Several API instances would each keep their own counters; use a shared
   store before scaling out.
 - Files are stored on the API host's disk by default; the S3 client has been exercised only against an in-memory fake.

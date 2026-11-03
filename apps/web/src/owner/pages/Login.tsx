@@ -4,7 +4,7 @@ import { api, type User } from '../lib/api';
 import { useForm } from '../lib/form';
 import { useI18n } from '../lib/i18n';
 import { clearQueries, setQueryData, useAction } from '../lib/query';
-import { useNavigate } from '../lib/router';
+import { Link, useNavigate } from '../lib/router';
 import { credentialsSchema } from '../lib/schemas';
 import { useMe } from '../lib/session';
 import { Field, Loading } from '../ui';
@@ -85,6 +85,11 @@ export function LoginPage() {
         </button>
       </form>
 
+      {mode === 'login' && (
+        <p className="note">
+          <Link to="/lupa-sandi">{t('recover.forgot')}</Link>
+        </p>
+      )}
       <p className="note">{t('auth.honest')}</p>
     </section>
   );

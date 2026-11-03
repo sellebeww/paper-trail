@@ -1,6 +1,10 @@
 // Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
 import { z } from 'zod';
 
+/** `.env` files often carry `KEY=` for unused options: an empty value means "not set". */
+const optional = <T extends z.ZodType>(schema: T) =>
+  z.preprocess((v) => (v === '' ? undefined : v), schema.optional());
+
 const schema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -12,12 +16,12 @@ const schema = z
     AMQP_URL: z.string().min(1),
 
     /** Files go to this directory when set; otherwise to the S3-compatible store below. */
-    STORAGE_DIR: z.string().min(1).optional(),
-    S3_ENDPOINT: z.string().url().optional(),
-    S3_BUCKET: z.string().min(3).optional(),
+    STORAGE_DIR: optional(z.string().min(1)),
+    S3_ENDPOINT: optional(z.string().url()),
+    S3_BUCKET: optional(z.string().min(3)),
     S3_REGION: z.string().min(1).default('us-east-1'),
-    S3_ACCESS_KEY: z.string().min(1).optional(),
-    S3_SECRET_KEY: z.string().min(1).optional(),
+    S3_ACCESS_KEY: optional(z.string().min(1)),
+    S3_SECRET_KEY: optional(z.string().min(1)),
 
     SESSION_TTL_HOURS: z.coerce
       .number()
@@ -44,6 +48,11 @@ const schema = z
       .int()
       .min(1024)
       .default(100 * 1024 * 1024),
+    /** How account mail (verify email, reset password) is delivered. Production must use smtp. */
+    MAILER: z.enum(['console', 'smtp']).default('console'),
+    /** nodemailer connection URL, e.g. smtps://user:pass@smtp.example.com:465 */
+    SMTP_URL: optional(z.string().min(1)),
+    SMTP_FROM: z.string().min(3).default('Paper Trail <no-reply@localhost>'),
     /** Requests per IP per minute on everything else. */
     API_RATE_LIMIT: z.coerce.number().int().min(1).default(300),
   })
@@ -53,7 +62,16 @@ const schema = z
       message: 'set STORAGE_DIR, or S3_ENDPOINT, S3_BUCKET, S3_ACCESS_KEY and S3_SECRET_KEY',
       path: ['STORAGE_DIR'],
     },
-  );
+  )
+  .refine((c) => c.MAILER !== 'smtp' || !!c.SMTP_URL, {
+    message: 'MAILER=smtp needs SMTP_URL',
+    path: ['SMTP_URL'],
+  })
+  .refine((c) => c.NODE_ENV !== 'production' || c.MAILER === 'smtp', {
+    // The console mailer prints one-time links; in production they would end up in the logs.
+    message: 'production needs MAILER=smtp',
+    path: ['MAILER'],
+  });
 
 export type Config = z.infer<typeof schema>;
 

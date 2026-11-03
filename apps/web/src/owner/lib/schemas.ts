@@ -30,6 +30,23 @@ export const credentialsSchema = (t: T, mode: 'login' | 'register') =>
         : z.string().min(1, t('form.required')),
   });
 
+export const emailSchema = (t: T) =>
+  z.object({
+    email: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .pipe(z.email(t('form.emailInvalid'))),
+  });
+
+export const newPasswordSchema = (t: T) =>
+  z.object({
+    password: z
+      .string()
+      .min(10, t('form.passwordShort'))
+      .max(128, t('form.tooLong', { max: 128 })),
+  });
+
 export const ledgerSchema = (t: T) =>
   z.object({ title: text(t, 120), category: z.enum(CATEGORIES) });
 

@@ -65,6 +65,10 @@ Per release, in this order:
 3. `paper-trail-web` (port 8080) with `API_UPSTREAM` set to the API's internal URL (default `http://api:3000`) and,
    if you raise `UPLOAD_MAX_BYTES`, a matching `CLIENT_MAX_BODY_SIZE`. Terminate TLS in front of it.
 
+Account mail: set `MAILER=smtp`, `SMTP_URL` (nodemailer URL, for example `smtps://user:pass@smtp.example.com:465`) and
+`SMTP_FROM` on the api container. With `NODE_ENV=production` (the image default) the API will not start with the
+console mailer. Test it by registering and checking that the verification mail arrives.
+
 Before a real deployment, work through [SECURITY.md § Hardening before production](SECURITY.md#hardening-before-production).
 
 ### Trigger an anchor now

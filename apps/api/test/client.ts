@@ -4,6 +4,7 @@ import type { AddressInfo } from 'node:net';
 import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config.js';
 import { createDb } from '../src/db.js';
+import { MemoryMailer } from '../src/mailer.js';
 import { MemoryStore, type ObjectStore } from '../src/storage.js';
 import { testDatabaseUrls } from './global-setup.js';
 
@@ -30,9 +31,11 @@ export const startTestApp = async <S extends ObjectStore = MemoryStore>(
   });
   const db = createDb(config.DATABASE_URL);
   const store = (makeStore?.() ?? new MemoryStore()) as S;
+  const mailer = new MemoryMailer();
   const server = buildApp({
     db,
     store,
+    mailer,
     config,
     health: { postgres: async () => {}, rabbitmq: async () => {} },
   }).listen(0);
@@ -40,6 +43,7 @@ export const startTestApp = async <S extends ObjectStore = MemoryStore>(
   return {
     db,
     store,
+    mailer,
     base,
     client: () => new TestClient(base),
     close: async () => {

@@ -1,9 +1,10 @@
 // Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
 import amqp from 'amqplib';
 import { buildApp } from './app.js';
-import { purgeExpiredSessions } from './auth.js';
+import { purgeExpiredSessions, purgeUserTokens } from './auth.js';
 import { loadConfig } from './config.js';
 import { createDb } from './db.js';
+import { ConsoleMailer, SmtpMailer } from './mailer.js';
 import { FsStore, S3Store } from './storage.js';
 
 const config = loadConfig();
@@ -26,6 +27,10 @@ const store = config.STORAGE_DIR
 const app = buildApp({
   db,
   store,
+  mailer:
+    config.MAILER === 'smtp'
+      ? new SmtpMailer(config.SMTP_URL!, config.SMTP_FROM)
+      : new ConsoleMailer(),
   config,
   health: {
     postgres: async () => {
@@ -40,8 +45,10 @@ const app = buildApp({
 
 // Hourly, and once at start-up. unref(): the timer never keeps the process alive.
 const purge = () =>
-  purgeExpiredSessions(db).then(
-    (count) => count && console.log(JSON.stringify({ msg: 'expired sessions purged', count })),
+  Promise.all([purgeExpiredSessions(db), purgeUserTokens(db)]).then(
+    ([sessions, tokens]) =>
+      sessions + tokens > 0 &&
+      console.log(JSON.stringify({ msg: 'expired rows purged', sessions, tokens })),
     () => console.error(JSON.stringify({ msg: 'session purge failed' })),
   );
 void purge();

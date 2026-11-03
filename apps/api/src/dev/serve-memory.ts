@@ -5,6 +5,7 @@
 import { buildApp } from '../app.js';
 import { loadConfig } from '../config.js';
 import { createDb } from '../db.js';
+import { ConsoleMailer } from '../mailer.js';
 import { MemoryStore } from '../storage.js';
 
 const config = loadConfig();
@@ -13,6 +14,7 @@ const db = createDb(config.DATABASE_URL);
 buildApp({
   db,
   store: new MemoryStore(),
+  mailer: new ConsoleMailer(),
   config,
   health: { postgres: async () => void (await db.$queryRaw`SELECT 1`), rabbitmq: async () => {} },
 }).listen(config.API_PORT, () => {

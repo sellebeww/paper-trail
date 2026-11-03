@@ -2,11 +2,13 @@
 import type { Config } from './config.js';
 import type { Db } from './db.js';
 import type { HealthDeps } from './health.js';
+import type { Mailer } from './mailer.js';
 import type { ObjectStore } from './storage.js';
 
 export interface AppContext {
   db: Db;
   store: ObjectStore;
+  mailer: Mailer;
   config: Config;
   health: HealthDeps;
 }
