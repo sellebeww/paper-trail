@@ -7,7 +7,8 @@ import pg from 'pg';
 
 const TEST_DB = 'papertrail_test';
 
-export const testDatabaseUrls = () => {
+/** URLs for an admin connection and for the test database `name` (worker tests use their own name). */
+export const testDatabaseUrls = (name = TEST_DB) => {
   try {
     process.loadEnvFile(resolve(import.meta.dirname, '../../../.env'));
   } catch {
@@ -16,17 +17,19 @@ export const testDatabaseUrls = () => {
   const admin = process.env['DATABASE_URL'];
   if (!admin) throw new Error('DATABASE_URL is not set. Run `pnpm infra:up` first.');
   const url = new URL(admin);
-  url.pathname = `/${TEST_DB}`;
+  url.pathname = `/${name}`;
   return { admin, test: url.toString() };
 };
 
-export default async function setup() {
-  const urls = testDatabaseUrls();
+/** Drops and recreates database `name`, then applies every migration. */
+export const createTestDatabase = async (name: string) => {
+  if (!/^[a-z_]+$/.test(name)) throw new Error('test database name must be [a-z_]+');
+  const urls = testDatabaseUrls(name);
   const client = new pg.Client({ connectionString: urls.admin });
   await client.connect();
   try {
-    await client.query(`DROP DATABASE IF EXISTS ${TEST_DB} WITH (FORCE)`);
-    await client.query(`CREATE DATABASE ${TEST_DB}`);
+    await client.query(`DROP DATABASE IF EXISTS ${name} WITH (FORCE)`);
+    await client.query(`CREATE DATABASE ${name}`);
   } finally {
     await client.end();
   }
@@ -35,4 +38,6 @@ export default async function setup() {
     env: { ...process.env, DATABASE_URL: urls.test },
     stdio: 'inherit',
   });
-}
+};
+
+export default () => createTestDatabase(TEST_DB);

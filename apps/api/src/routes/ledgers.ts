@@ -125,7 +125,9 @@ export const ledgerRoutes = ({ db, store, config }: AppContext): Router => {
         anchoredHeadSeq: number;
         anchoredHeadHash: string;
         tstGenTime: Date | null;
+        tsaUrl: string;
         attempts: number;
+        updatedAt: Date;
       } | null,
     ) =>
       a && {
@@ -133,7 +135,9 @@ export const ledgerRoutes = ({ db, store, config }: AppContext): Router => {
         anchored_head_seq: a.anchoredHeadSeq,
         anchored_head_hash: a.anchoredHeadHash,
         gen_time: a.tstGenTime?.toISOString() ?? null,
+        tsa_url: a.tsaUrl || null,
         attempts: a.attempts,
+        updated_at: a.updatedAt.toISOString(),
       };
     const [last, confirmed] = await Promise.all([
       db.anchor.findFirst({
@@ -149,6 +153,9 @@ export const ledgerRoutes = ({ db, store, config }: AppContext): Router => {
       ledger: ledgerJson(ledger),
       last_anchor: anchorJson(last),
       last_confirmed_anchor: anchorJson(confirmed),
+      // Entries with no external time proof yet (SPEC §8, UNANCHORED_TAIL).
+      unanchored_entries:
+        ledger.headSeq === null ? 0 : ledger.headSeq - (confirmed?.anchoredHeadSeq ?? -1),
     });
   });
 
