@@ -1,8 +1,7 @@
 # Architecture
 
-Status: draft v0.1, pre-alpha. The format itself is defined in [SPEC.md](SPEC.md); what the design does and does
-not protect is in [THREAT_MODEL.md](THREAT_MODEL.md). Only the health check and the infrastructure exist today;
-every flow below is the **planned** design.
+Status: v0.1.0, pre-alpha. Every flow below is implemented and tested. The format itself is defined in
+[SPEC.md](SPEC.md); what the design does and does not protect is in [THREAT_MODEL.md](THREAT_MODEL.md).
 
 ## 1. Components
 
@@ -194,7 +193,7 @@ sequenceDiagram
   participant D as PostgreSQL
   participant S as MinIO / S3
   actor V as Verifier (legal aide, union)
-  participant P as papertrail-verify (packages/verifier)
+  participant P as paper-trail-verify (packages/verifier)
 
   O->>A: POST /ledgers/:id/export { range, payloads, include_files, anchor_bridge }
   A->>D: Resolve range, extend to the next confirmed anchor (bridge), read entries and anchors
@@ -206,7 +205,7 @@ sequenceDiagram
   O->>A: GET /ledgers/:id/export.pdf (same selection + generated_at)
   A-->>O: PDF summary with the same pack hash and a QR code
   O->>V: Hand over pack (and PDF) through any channel
-  V->>P: papertrail-verify pack --roots tsa-roots.pem  (offline)
+  V->>P: paper-trail-verify pack --roots tsa-roots.pem  (offline)
   P->>P: verifyPack (chain) + token checks (verifier) per SPEC §8
   P-->>V: "Rantai utuh" or "Terputus di entri X", plus warnings
 ```
@@ -217,10 +216,29 @@ chain's types and hands them to `buildEvidencePack`, so the format has one defin
 planned verification page calls our server. Trusting an anchor additionally needs the TSA's roots, supplied by the
 verifier.
 
-## 6. Runtime and local infrastructure
+## 6. Runtime and infrastructure
 
-`docker-compose.yml` runs PostgreSQL, RabbitMQ (with the management UI) and MinIO, each with a healthcheck.
-The apps run on the host with `pnpm dev`. `GET /health` on the API checks PostgreSQL and RabbitMQ and returns
+**Local:** `docker-compose.yml` runs PostgreSQL, RabbitMQ (with the management UI) and MinIO, each with a healthcheck.
+The apps run on the host with `pnpm dev`.
+
+**Production images:** one multi-stage `Dockerfile` with a shared build stage and four targets. `api` and `worker`
+are `node:22-alpine` with production dependencies only (`pnpm deploy --prod`), running as the `node` user. `web` is
+nginx (unprivileged) serving the static build, adding the security headers from `deploy/nginx/` and proxying `/api/`
+to the API, so browser and API share one origin as in development. `migrate` is the full build, used once per release
+for `prisma migrate deploy` and the worker's `db:role`. The worker exits when it loses RabbitMQ and relies on its
+supervisor to restart it; unacknowledged jobs are redelivered (covered by the chaos tests).
+
+````mermaid
+flowchart LR
+  U["Browser"] -->|HTTPS, TLS terminated in front| WEB["web: nginx<br/>static app + /api/ proxy"]
+  WEB -->|/api/| API["api"]
+  API --> PG[("PostgreSQL")]
+  API --> S3[("S3 / MinIO")]
+  WORKER["worker"] --> PG
+  WORKER --> MQ{{"RabbitMQ"}}
+  WORKER --> TSA["TSA"]
+  MIG["migrate (one-off)"] --> PG
+``` `GET /health` on the API checks PostgreSQL and RabbitMQ and returns
 `200 {status: "ok"}` or `503 {status: "degraded"}` with a per-dependency `up`/`down`, without error details.
 
 ## 7. Design decisions worth remembering
@@ -230,3 +248,4 @@ The apps run on the host with `pnpm dev`. `GET /health` on the API checks Postgr
 - **Integrity is enforced twice:** at the application and by Postgres triggers.
 - **External calls are asynchronous.** The TSA going down must not stop people from recording evidence.
 - **Verification is local.** A verifier should not need to trust, or even reach, our server.
+````

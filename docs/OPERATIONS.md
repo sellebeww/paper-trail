@@ -44,6 +44,27 @@ pnpm dev                                        # api + worker + web, in watch m
 The worker scans for changed ledgers once at start-up and then every `ANCHOR_INTERVAL_HOURS` (default 6). For a demo,
 set `ANCHOR_INTERVAL_HOURS=0.01` (36 seconds) in the worker's environment.
 
+### Production images
+
+One `Dockerfile` builds all images from a shared build stage ([ARCHITECTURE §6](ARCHITECTURE.md)):
+
+```bash
+for t in api worker web migrate; do docker build --target $t -t paper-trail-$t .; done
+```
+
+All configuration is environment variables, the same names as in `.env.example` (nothing is baked into the images).
+Per release, in this order:
+
+1. `docker run --rm --env-file prod.env paper-trail-migrate` (applies migrations), and once per environment
+   `docker run --rm --env-file prod.env paper-trail-migrate pnpm --filter @paper-trail/worker db:role`.
+2. `paper-trail-api` (port 3000, `HEALTHCHECK` on `/health`) and `paper-trail-worker` with a restart policy such as
+   `--restart unless-stopped`: the worker exits on purpose when it loses RabbitMQ. Mount the TSA root bundle and point
+   `TSA_CA_CERTS` at it.
+3. `paper-trail-web` (port 8080) with `API_UPSTREAM` set to the API's internal URL (default `http://api:3000`) and,
+   if you raise `UPLOAD_MAX_BYTES`, a matching `CLIENT_MAX_BODY_SIZE`. Terminate TLS in front of it.
+
+Before a real deployment, work through [SECURITY.md § Hardening before production](SECURITY.md#hardening-before-production).
+
 ### Trigger an anchor now
 
 ```bash

@@ -272,7 +272,7 @@ when attachments travel with it. Anyone can verify it offline (§8).
 {
   "format_version": "1.0",
   "generated_at": "2026-11-03T03:30:56.000Z",
-  "generator": { "name": "paper-trail", "version": "0.0.0" },
+  "generator": { "name": "paper-trail", "version": "0.1.0" },
   "ledger": { "id": "3b1f7a0e-…", "title": "Sengketa uang lembur", "category": "kerja" },
   "scope": {
     "from_seq": 0,
@@ -567,5 +567,5 @@ and its throwaway root (`example-tsa-root.pem`), so they demonstrate the format 
 real time. Verify offline:
 
 ```bash
-papertrail-verify docs/examples/example-pack.json --roots docs/examples/example-tsa-root.pem
+npx paper-trail-verify docs/examples/example-pack.json --roots docs/examples/example-tsa-root.pem
 ```

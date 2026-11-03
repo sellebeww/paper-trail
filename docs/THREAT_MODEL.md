@@ -1,6 +1,6 @@
 # Threat model
 
-Status: draft v0.1, pre-alpha. Read together with [SPEC.md](SPEC.md). Section numbers like "SPEC §8" refer to it.
+Status: v0.1.0, pre-alpha. Read together with [SPEC.md](SPEC.md). Section numbers like "SPEC §8" refer to it.
 
 ## 0. What this system does, in one honest paragraph
 
@@ -252,6 +252,10 @@ anchors but cannot alter the chain.
 
 Physical coercion of users, device malware that edits what the user sees before submission, truthfulness of
 content, identity proofing, long-term archival formats, and legal admissibility analysis.
+
+The chain-level guarantees are tested property-based: random edits, deletions, insertions, duplications and
+reorderings of a valid chain are always detected, and the two changes a chain alone cannot see (truncating the tail,
+resealing the last entry) are pinned by a test as known limits (`packages/chain/src/verify.property.test.ts`).
 
 ## 9. Reading guide for verifiers
 

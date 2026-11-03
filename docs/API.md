@@ -1,6 +1,6 @@
 # API (owner side)
 
-Status: pre-alpha, v0. This is the API a ledger owner uses. Witness links, anchoring and export are later steps.
+Status: v0.1.0, pre-alpha. This is the API a ledger owner uses, plus the public witness endpoints.
 Request and response bodies are JSON with `snake_case` fields, matching [SPEC.md](SPEC.md). User-facing
 `message` strings are Indonesian; `code` values are stable identifiers.
 
@@ -221,11 +221,12 @@ curl -s -b cookies.txt -H "X-CSRF-Token: $CSRF" -H "Content-Type: application/js
   -D headers.txt -o pack.json "$BASE/ledgers/$LEDGER/export"
 GEN=$(sed -n 's/.*"generated_at": "\([^"]*\)".*/\1/p' pack.json | head -n1)
 curl -s -b cookies.txt -G --data-urlencode "generated_at=$GEN" -o ringkasan.pdf "$BASE/ledgers/$LEDGER/export.pdf"
-papertrail-verify pack.json --roots tsa-roots.pem
+npx paper-trail-verify pack.json --roots tsa-roots.pem
 ```
 
-Checking a pack needs no account: `papertrail-verify` (packages/verifier) runs offline; see
-[SPEC §8](SPEC.md#8-verification-algorithm) and [examples/README.md](examples/README.md).
+Checking a pack needs no account: `paper-trail-verify` (packages/verifier) and the `/verify` page run offline, and
+[VERIFY.md](VERIFY.md) shows how to check one with only Python and OpenSSL; see also
+[SPEC §8](SPEC.md#8-verification-algorithm).
 
 ### There is deliberately no edit or delete
 
@@ -236,6 +237,8 @@ append a new entry that says so. (Ledger and account deletion for privacy reason
 [OPEN_DECISIONS.md](OPEN_DECISIONS.md).)
 
 ## Security notes
+
+The full v0.1.0 review is in [SECURITY.md](SECURITY.md).
 
 - Passwords: argon2id (19 MiB, 2 passes). Unknown emails cost the same time as wrong passwords.
 - Session and CSRF tokens: 256-bit random; only the session token's hash is stored.
