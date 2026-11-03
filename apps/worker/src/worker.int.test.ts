@@ -1,12 +1,12 @@
-// Copyright (c) 2026 Vassel Goleyu. All rights reserved.
+// Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
 // Real RabbitMQ (docker compose) + real Postgres + the local mock TSA. Queues use a random prefix and are
 // deleted afterwards; the worker connects as a fresh member of the least-privilege pt_worker role.
 import { randomBytes, randomUUID } from 'node:crypto';
-import { buildEntry, type Entry } from '@paper-trail/chain';
 import amqp, { type ChannelModel } from 'amqplib';
 import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { testDatabaseUrls } from '../../api/test/global-setup.js';
+import { ledgerFixtures, waitFor, workerRole } from '../test/fixtures.js';
 import { WORKER_TEST_DB } from '../test/global-setup.js';
 import { loadConfig } from './config.js';
 import { createMockTsa, type MockTsa } from '@paper-trail/verifier/testing';
@@ -17,98 +17,22 @@ import { startWorker } from './worker.js';
 
 const DELAYS = [100, 200]; // 3 attempts in total
 const PREFIX = `it${randomBytes(3).toString('hex')}.`;
-const ROLE = `pt_worker_it_${randomBytes(4).toString('hex')}`;
-const PASSWORD = randomBytes(16).toString('hex');
 
 let admin: pg.Pool; // owner role: fixtures only
+let role: Awaited<ReturnType<typeof workerRole>>;
 let workerPool: pg.Pool; // what the worker uses
+type Fixtures = ReturnType<typeof ledgerFixtures>;
+let chains: Fixtures['chains'];
+let append: Fixtures['append'];
+let newUser: Fixtures['newUser'];
+let newLedger: Fixtures['newLedger'];
+let anchor: Fixtures['anchor'];
 let connection: ChannelModel;
 let tsa: MockTsa;
 let worker: Awaited<ReturnType<typeof startWorker>>;
 const sent: Notification[] = [];
 const logs: Record<string, unknown>[] = [];
 
-const waitFor = async <T>(probe: () => Promise<T | undefined | false>, ms = 10_000): Promise<T> => {
-  const end = Date.now() + ms;
-  for (;;) {
-    const value = await probe();
-    if (value) return value;
-    if (Date.now() > end) throw new Error('waitFor timed out');
-    await new Promise((r) => setTimeout(r, 50));
-  }
-};
-
-// ---- fixtures: a ledger with a valid chain, written as the owner role ----
-const chains = new Map<string, Entry[]>();
-const append = async (ledgerId: string) => {
-  const chain = chains.get(ledgerId)!;
-  const prev = chain.at(-1) ?? null;
-  const entry = buildEntry(
-    {
-      ledger_id: ledgerId,
-      type: 'note',
-      created_at: new Date(Date.now() - 60_000 + chain.length).toISOString(),
-      author_ref: 'owner:0000',
-      payload: { text: `catatan ${chain.length}` },
-    },
-    prev,
-  );
-  await admin.query(
-    `INSERT INTO entries (id, ledger_id, seq, type, created_at, author_ref, payload_hash, payload, prev_hash, entry_hash)
-     VALUES (gen_random_uuid(), $1, $2, 'note', $3, $4, $5, $6, $7, $8)`,
-    [
-      ledgerId,
-      entry.seq,
-      entry.created_at,
-      entry.author_ref,
-      entry.payload_hash,
-      entry.payload,
-      entry.prev_hash,
-      entry.entry_hash,
-    ],
-  );
-  await admin.query('UPDATE ledgers SET head_seq = $2, head_hash = $3 WHERE id = $1', [
-    ledgerId,
-    entry.seq,
-    entry.entry_hash,
-  ]);
-  chain.push(entry);
-  return entry;
-};
-const newUser = async () =>
-  (
-    await admin.query<{ id: string; email: string }>(
-      `INSERT INTO users (id, email, password_hash) VALUES (gen_random_uuid(), $1, 'x') RETURNING id, email`,
-      [`${randomUUID()}@example.test`],
-    )
-  ).rows[0]!;
-const newLedger = async (entries: number) => {
-  const user = await newUser();
-  const { id } = (
-    await admin.query<{ id: string }>(
-      `INSERT INTO ledgers (id, owner_id, title, category) VALUES (gen_random_uuid(), $1, 'Uji worker', 'kerja') RETURNING id`,
-      [user.id],
-    )
-  ).rows[0]!;
-  chains.set(id, []);
-  for (let i = 0; i < entries; i++) await append(id);
-  return id;
-};
-const anchor = async (ledgerId: string, seq: number) =>
-  (
-    await admin.query<{
-      status: string;
-      attempts: number;
-      tst_token: Buffer | null;
-      tst_gen_time: Date | null;
-      tsa_url: string;
-      last_error: string | null;
-      anchor_digest: string;
-    }>(
-      'SELECT status, attempts, tst_token, tst_gen_time, tsa_url, last_error, anchor_digest FROM anchors WHERE ledger_id = $1 AND anchored_head_seq = $2',
-      [ledgerId, seq],
-    )
-  ).rows[0];
 const dlqDepth = async (queue: string) =>
   (await worker.channel.checkQueue(deadLetterQueue(queue))).messageCount;
 const outcomes = (messageId: string) =>
@@ -119,17 +43,15 @@ const outcomes = (messageId: string) =>
 beforeAll(async () => {
   const urls = testDatabaseUrls(WORKER_TEST_DB); // also loads .env (AMQP_URL)
   admin = new pg.Pool({ connectionString: urls.test });
-  await admin.query(`CREATE ROLE ${ROLE} LOGIN PASSWORD '${PASSWORD}' IN ROLE pt_worker`); // hex only: safe to inline
-  const workerUrl = new URL(urls.test);
-  workerUrl.username = ROLE;
-  workerUrl.password = PASSWORD;
-  workerPool = new pg.Pool({ connectionString: workerUrl.toString() });
+  ({ chains, append, newUser, newLedger, anchor } = ledgerFixtures(admin));
+  role = await workerRole(admin, urls.test);
+  workerPool = role.pool;
 
   tsa = await createMockTsa();
   connection = await amqp.connect(process.env['AMQP_URL']!);
   const config = loadConfig({
     AMQP_URL: process.env['AMQP_URL'],
-    WORKER_DATABASE_URL: workerUrl.toString(),
+    WORKER_DATABASE_URL: role.url,
     TSA_URLS: tsa.url,
     RETRY_DELAYS_MS: DELAYS.join(','),
     QUEUE_PREFIX: PREFIX,
@@ -151,8 +73,7 @@ afterAll(async () => {
   for (const q of allQueues(worker.topology, DELAYS)) await ch.deleteQueue(q);
   await ch.deleteExchange(worker.topology.exchange);
   await connection.close();
-  await workerPool.end();
-  await admin.query(`DROP ROLE ${ROLE}`);
+  await role.drop();
   await admin.end();
   await tsa.close();
 });
