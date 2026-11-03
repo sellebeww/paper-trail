@@ -70,7 +70,9 @@ Read these before relying on Paper Trail for anything real.
 - No email verification or password reset; registration reveals whether an email is already registered.
 - Rate limits are in memory, per process: run one API instance. No high-availability setup.
 - Expired sessions are removed only when used; there is no cleanup job.
-- The S3 client is tested against an in-memory store, not against a running MinIO.
+- **No object store starts by default.** The `minio/minio` image is no longer published, so MinIO is an opt-in compose
+  profile and uploads answer `503` without an S3 endpoint; a replacement has not been chosen. The S3 client is tested
+  against an in-memory store only.
 - Photo EXIF/GPS metadata is stored as uploaded ([OPEN_DECISIONS D7](docs/OPEN_DECISIONS.md)).
 - Audio and Office uploads are accepted by type detection but not covered by tests.
 - Append-only means **no deletion** of entries, ledgers or accounts, which conflicts with privacy requests; undecided.

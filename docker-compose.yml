@@ -34,7 +34,11 @@ services:
       timeout: 10s
       retries: 10
 
+  # Opt-in (`docker compose --profile s3 up -d`): the minio/minio image is no longer published on Docker Hub, so a
+  # clean machine cannot pull it. Without it the API still runs; only photo/file uploads answer 503 until an
+  # S3-compatible endpoint is configured (S3_ENDPOINT). Choosing a replacement is an open decision (CHANGELOG).
   minio:
+    profiles: ['s3']
     image: minio/minio
     command: server /data --console-address ":9001"
     environment:

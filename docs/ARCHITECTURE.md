@@ -218,7 +218,8 @@ verifier.
 
 ## 6. Runtime and infrastructure
 
-**Local:** `docker-compose.yml` runs PostgreSQL, RabbitMQ (with the management UI) and MinIO, each with a healthcheck.
+**Local:** `docker-compose.yml` runs PostgreSQL and RabbitMQ (with the management UI), and MinIO behind the opt-in `s3`
+profile, each with a healthcheck.
 The apps run on the host with `pnpm dev`.
 
 **Production images:** one multi-stage `Dockerfile` with a shared build stage and four targets. `api` and `worker`

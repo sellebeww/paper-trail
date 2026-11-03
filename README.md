@@ -55,7 +55,7 @@ Requirements: Node.js 22 (`.nvmrc`), pnpm 10 (`corepack enable`), Docker with Co
 ```bash
 git clone <this repository> paper-trail && cd paper-trail
 pnpm install
-pnpm infra:up                                  # creates .env from .env.example; starts Postgres, RabbitMQ, MinIO
+pnpm infra:up                                  # creates .env from .env.example; starts Postgres and RabbitMQ
 pnpm --filter @paper-trail/api db:migrate      # schema and append-only triggers
 pnpm --filter @paper-trail/worker db:role      # least-privilege database role for the worker
 pnpm demo                                      # fictional demo ledger + packs in demo/
@@ -75,6 +75,11 @@ The demo's anchors come from a local **mock TSA that proves nothing about real t
 a real TSA and check its terms ([docs/OPERATIONS.md](docs/OPERATIONS.md#choosing-a-tsa)); for a local experiment, run
 `pnpm --filter @paper-trail/worker mock-tsa` and put the values it prints in `.env`. The values in `.env.example` are
 for local development only. Stop the infrastructure with `pnpm infra:down`.
+
+**File uploads** (photos, documents) need an S3-compatible store, which the quickstart does not start: the `minio/minio`
+image is no longer published, so MinIO is an opt-in profile (`docker compose --profile s3 up -d`, works only where the
+image is already cached). Everything else, including the demo, runs without it; uploads answer `503` until
+`S3_ENDPOINT` points at a store.
 
 ## Repository layout
 

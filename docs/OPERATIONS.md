@@ -6,7 +6,7 @@ Short runbook for the API and the worker in a local or small deployment. Archite
 
 ```bash
 pnpm install
-pnpm infra:up                                   # postgres, rabbitmq (+ minio, see note below)
+pnpm infra:up                                   # postgres, rabbitmq (MinIO is opt-in, see note below)
 pnpm --filter @paper-trail/api db:migrate       # schema, triggers, the pt_worker group role
 pnpm --filter @paper-trail/worker db:role       # login role from WORKER_DATABASE_URL, member of pt_worker
 ```
@@ -15,8 +15,9 @@ pnpm --filter @paper-trail/worker db:role       # login role from WORKER_DATABAS
 `WORKER_DATABASE_URL`. Run it again after changing that password. Never give the worker the admin URL: the separate
 role is what stops it from writing entries.
 
-> MinIO note: in November 2026 the `minio/minio` image could not be pulled from Docker Hub or quay.io. Uploads need an
-> S3-compatible store; this is an open decision (see the Step 5 report). The worker does not need it.
+> MinIO note: in November 2026 the `minio/minio` image could not be pulled from Docker Hub or quay.io, so the compose
+> service is behind the `s3` profile (`docker compose --profile s3 up -d`). Uploads need an S3-compatible store; which
+> one replaces MinIO is an open decision. The worker and the demo do not need it.
 
 ## Choosing a TSA
 
