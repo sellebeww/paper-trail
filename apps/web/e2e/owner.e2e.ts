@@ -11,6 +11,7 @@ import { join, resolve } from 'node:path';
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright-core';
 import { build, preview, type PreviewServer } from 'vite';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { expectAccessible } from './a11y';
 import { createTestDatabase } from '../../api/test/global-setup.js';
 
 const web = resolve(import.meta.dirname, '..');
@@ -165,11 +166,13 @@ describe('owner flow', () => {
     // 1. Register. An anonymous visitor lands on the login screen.
     await page.goto(url);
     await page.getByRole('heading', { name: /Catatan yang tidak bisa Anda ubah/ }).waitFor();
+    await expectAccessible(page, 'login');
     await button(page, 'Daftar').click();
     await page.getByLabel('Email').fill(`budi-${Date.now()}@example.test`);
     await page.getByLabel('Kata sandi').fill(PASSWORD);
     await button(page, 'Buat akun').click();
     await page.getByRole('heading', { name: 'Ledger saya' }).waitFor();
+    await expectAccessible(page, 'ledger list (empty)');
 
     // 2. Create a ledger.
     await button(page, 'Ledger baru').first().click();
@@ -185,6 +188,7 @@ describe('owner flow', () => {
     await page.getByLabel('Apa yang terjadi?').fill('Atasan menolak membayar lembur Senin.');
     await button(page, 'Catat sekarang').click();
     await page.getByTestId('receipt').waitFor();
+    await expectAccessible(page, 'receipt');
     await shot(page, '1-receipt');
     const entry1 = (await page.getByTestId('receipt-entry-hash').getAttribute('data-hash'))!;
     const head1 = (await page.getByTestId('receipt-head-hash').getAttribute('data-hash'))!;
@@ -232,6 +236,7 @@ describe('owner flow', () => {
     const witness = await context.newPage();
     await witness.goto(inviteUrl.replace(/^https?:\/\/[^/]+/, `http://localhost:${WEB_PORT}`));
     await witness.getByText('Atasan menolak membayar lembur Senin.').waitFor();
+    await expectAccessible(witness, 'witness page');
     await witness.locator('#witness-name').fill('Siti Saksi');
     await witness.getByRole('checkbox').check();
     await witness.getByRole('button', { name: 'Saya menyaksikan ini' }).click();
@@ -257,11 +262,13 @@ describe('owner flow', () => {
       { timeout: 45_000, interval: 1_000 },
     );
     expect(await page.getByTestId('stamp-anchored').count()).toBe(3);
+    await expectAccessible(page, 'ledger timeline');
     await shot(page, '4-anchored');
 
     // 8. Export the pack and the PDF summary.
     await link(page, 'Ekspor').click();
     await page.getByRole('heading', { name: 'Ekspor', level: 1 }).waitFor();
+    await expectAccessible(page, 'export');
     const packPath = await download(
       page,
       () => button(page, 'Unduh paket (JSON)').click(),
@@ -285,6 +292,7 @@ describe('owner flow', () => {
     await verify.setInputFiles('#roots-file', caPem);
     await verify.getByRole('button', { name: 'Verifikasi' }).click();
     await verify.getByTestId('headline').waitFor();
+    await expectAccessible(verify, 'verify result');
     expect(await verify.getByTestId('headline').textContent()).toBe('✔ Rantai utuh');
     expect(await verify.getByTestId('check-anchors').getAttribute('data-status')).toBe('pass');
     await verify.close();
@@ -324,6 +332,7 @@ describe('owner flow', () => {
     await button(page, 'Buat akun').click();
     await page.getByRole('heading', { name: 'Ledger saya' }).waitFor();
     await page.getByText(/Email Anda belum diverifikasi/).waitFor();
+    await expectAccessible(page, 'unverified banner');
     await shot(page, '6-unverified-banner');
 
     const verifyLink = await linkFor(/Verifikasi email/);
@@ -352,6 +361,7 @@ describe('owner flow', () => {
     await page.goto(resetLink);
     await page.getByRole('heading', { name: 'Pilih kata sandi baru' }).waitFor();
     expect(page.url()).not.toContain('#');
+    await expectAccessible(page, 'reset password');
     await shot(page, '8-reset-form');
     await page.getByLabel('Kata sandi baru').fill(NEW_PASSWORD);
     await button(page, 'Simpan kata sandi baru').click();

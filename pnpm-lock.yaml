@@ -164,6 +164,9 @@ importers:
       '@vitejs/plugin-react':
         specifier: ^6.2.1
         version: 6.2.1(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
+      axe-core:
+        specifier: ^4.14.0
+        version: 4.14.0
       playwright-core:
         specifier: ^1.63.0
         version: 1.63.0
@@ -1248,6 +1251,10 @@ packages:
   aws-ssl-profiles@1.1.2:
     resolution: {integrity: sha512-NZKeq9AfyQvEeNlN0zSYAaWrmBffJh3IELMZfRpJVWgrpEbtEpnjvzqBPf+mxoI287JohRDoa+/nsfqqiZmF6g==}
     engines: {node: '>= 6.0.0'}
+
+  axe-core@4.14.0:
+    resolution: {integrity: sha512-9WTZxEjsZ7b13TH8JPmbV2z8CHbl80/2hm3XPEG4JgNdQLK81IBRXmSxHfMAOkSqQeRxT/0dwNDz2GOm3zzpcQ==}
+    engines: {node: '>=4'}
 
   balanced-match@4.0.4:
     resolution: {integrity: sha512-BLrgEcRTwX2o6gGxGOCNyMvGSp35YofuYzw9h1IMTRmKqttAZZVU67bdb9Pr2vUHA8+j3i2tJfjO6C6+4myGTA==}
@@ -3641,6 +3648,8 @@ snapshots:
   assertion-error@2.0.1: {}
 
   aws-ssl-profiles@1.1.2: {}
+
+  axe-core@4.14.0: {}
 
   balanced-match@4.0.4: {}
 
