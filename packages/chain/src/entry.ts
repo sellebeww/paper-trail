@@ -58,19 +58,20 @@ export const computePayloadHash = (payload: PayloadObject): string => {
 };
 
 /** SHA-256 of the JCS form of exactly the envelope fields (SPEC §2.2); extra fields are ignored. */
-export const computeEntryHash = (e: EntryEnvelope): string =>
-  sha256Hex(
-    canonicalize({
-      v: e.v,
-      ledger_id: e.ledger_id,
-      seq: e.seq,
-      type: e.type,
-      created_at: e.created_at,
-      author_ref: e.author_ref,
-      payload_hash: e.payload_hash,
-      prev_hash: e.prev_hash,
-    }),
-  );
+/** JCS of exactly the envelope fields (SPEC §2.2). Its SHA-256 is entry_hash; it is also what an anchor timestamps (SPEC §5.1). */
+export const canonicalEnvelope = (e: EntryEnvelope): string =>
+  canonicalize({
+    v: e.v,
+    ledger_id: e.ledger_id,
+    seq: e.seq,
+    type: e.type,
+    created_at: e.created_at,
+    author_ref: e.author_ref,
+    payload_hash: e.payload_hash,
+    prev_hash: e.prev_hash,
+  });
+
+export const computeEntryHash = (e: EntryEnvelope): string => sha256Hex(canonicalEnvelope(e));
 
 export interface EntryInput {
   ledger_id: string;
