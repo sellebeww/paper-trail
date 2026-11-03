@@ -1,0 +1,31 @@
+# Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
+# Rendered by the nginx image's envsubst step: ${API_UPSTREAM} and ${CLIENT_MAX_BODY_SIZE} come from the environment.
+server {
+    listen 8080;
+    server_tokens off;
+    root /usr/share/nginx/html;
+
+    # Uploads go through here: keep above UPLOAD_MAX_BYTES (default 15 MiB) plus multipart overhead.
+    client_max_body_size ${CLIENT_MAX_BODY_SIZE};
+
+    location /api/ {
+        proxy_pass ${API_UPSTREAM}/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        # Witness tokens live in the URL fragment and never reach here; do not log query strings anyway.
+        access_log off;
+    }
+
+    location /assets/ {
+        include /etc/nginx/snippets/security-headers.conf;
+        expires max;
+    }
+
+    location / {
+        include /etc/nginx/snippets/security-headers.conf;
+        add_header Cache-Control "no-cache" always;
+        try_files $uri /index.html;
+    }
+}

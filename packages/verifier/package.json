@@ -1,18 +1,19 @@
 {
   "name": "@paper-trail/verifier",
-  "version": "0.0.0",
-  "private": true,
-  "description": "Verifier library and CLI for Paper Trail evidence packs.",
+  "version": "0.1.0",
+  "description": "Offline verifier library and CLI for Paper Trail evidence packs: hash chain, witness signatures and RFC 3161 time-stamp tokens.",
   "author": "Vassel Goleyu",
-  "license": "UNLICENSED",
+  "license": "Apache-2.0",
   "type": "module",
   "bin": {
+    "paper-trail-verify": "./dist/cli.js",
     "papertrail-verify": "./dist/cli.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "fixtures": "tsx --conditions=source scripts/make-fixtures.ts"
   },
   "dependencies": {
     "@paper-trail/chain": "workspace:*",
@@ -33,6 +34,38 @@
       "types": "./src/testing/mock-tsa.ts",
       "source": "./src/testing/mock-tsa.ts",
       "default": "./dist/testing/mock-tsa.js"
+    }
+  },
+  "keywords": [
+    "paper-trail",
+    "evidence",
+    "verifier",
+    "rfc3161",
+    "timestamp",
+    "hash-chain"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.test.*",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./testing": {
+        "types": "./dist/testing/mock-tsa.d.ts",
+        "default": "./dist/testing/mock-tsa.js"
+      }
     }
   }
 }

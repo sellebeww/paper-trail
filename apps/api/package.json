@@ -1,9 +1,9 @@
 {
   "name": "@paper-trail/api",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "author": "Vassel Goleyu",
-  "license": "UNLICENSED",
+  "license": "Apache-2.0",
   "type": "module",
   "scripts": {
     "dev": "tsx watch --conditions=source --env-file-if-exists=../../.env src/index.ts",
@@ -15,7 +15,8 @@
     "postinstall": "prisma generate",
     "db:migrate": "prisma migrate deploy",
     "db:generate": "prisma generate",
-    "example:pack": "tsx --conditions=source src/dev/make-example.ts"
+    "example:pack": "tsx --conditions=source src/dev/make-example.ts",
+    "demo:seed": "tsx --conditions=source --env-file-if-exists=../../.env src/dev/seed-demo.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1161.0",
@@ -50,5 +51,8 @@
     "@types/qrcode": "^1.5.6",
     "prisma": "7.10.1",
     "unpdf": "^2.1.0"
-  }
+  },
+  "files": [
+    "dist"
+  ]
 }

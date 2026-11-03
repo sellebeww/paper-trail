@@ -1,10 +1,9 @@
 {
   "name": "@paper-trail/chain",
-  "version": "0.0.0",
-  "private": true,
-  "description": "Pure hash-chain core: canonicalization, hashing, chain verification. No framework dependencies.",
+  "version": "0.1.0",
+  "description": "Paper Trail evidence format: canonical JSON, hash chain, witness signatures and pack verification. Pure, no framework dependencies.",
   "author": "Vassel Goleyu",
-  "license": "UNLICENSED",
+  "license": "Apache-2.0",
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
@@ -21,6 +20,43 @@
       "types": "./src/browser.ts",
       "source": "./src/browser.ts",
       "default": "./dist/browser.js"
+    }
+  },
+  "dependencies": {
+    "@noble/hashes": "^2.4.0"
+  },
+  "devDependencies": {
+    "fast-check": "^3.23.2"
+  },
+  "keywords": [
+    "paper-trail",
+    "hash-chain",
+    "evidence",
+    "tamper-evident",
+    "jcs"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.test.*",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./browser": {
+        "types": "./dist/browser.d.ts",
+        "default": "./dist/browser.js"
+      }
     }
   }
 }

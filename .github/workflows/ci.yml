@@ -1,0 +1,109 @@
+# Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
+# Lint, typecheck, unit tests, build and dependency audit; integration, chaos and browser tests against real
+# Postgres and RabbitMQ; production images; an npm publish dry-run of the verifier.
+# Actions are pinned by major tag; pin them by commit SHA before relying on this for releases (docs/SECURITY.md).
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Lint, typecheck, unit tests, build, audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+      - name: Dependency audit (fails on high or critical)
+        run: pnpm audit --audit-level high
+
+  # Follows the README quickstart (.env from .env.example, migrate, worker role), so it also checks the quickstart.
+  integration:
+    name: Integration, chaos and browser tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: papertrail
+          POSTGRES_PASSWORD: change-me-local-only # the .env.example value; throwaway container
+          POSTGRES_DB: papertrail
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U papertrail" --health-interval 5s --health-timeout 3s --health-retries 20
+      rabbitmq:
+        image: rabbitmq:4-management-alpine
+        env:
+          RABBITMQ_DEFAULT_USER: papertrail
+          RABBITMQ_DEFAULT_PASS: change-me-local-only
+        ports: ['5672:5672']
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping" --health-interval 10s --health-timeout 10s --health-retries 20
+    env:
+      # The chaos test restarts this container to simulate a broker restart.
+      CHAOS_RABBITMQ_CONTAINER: ${{ job.services.rabbitmq.id }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: cp .env.example .env
+      - run: pnpm --filter @paper-trail/api db:migrate
+      - run: pnpm --filter @paper-trail/worker db:role
+      - run: pnpm test:int
+      - name: Browser tests (system Chrome)
+        run: pnpm --filter @paper-trail/web test:e2e
+
+  docker:
+    name: Production images
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target: [api, worker, web]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: ${{ matrix.target }}
+          push: false
+          tags: paper-trail-${{ matrix.target }}:ci
+          cache-from: type=gha,scope=build
+          cache-to: type=gha,scope=build,mode=max
+
+  publish-dry-run:
+    name: npm publish dry-run (chain, verifier)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @paper-trail/chain --filter @paper-trail/verifier build
+      - run: pnpm --filter @paper-trail/chain --filter @paper-trail/verifier publish --dry-run --no-git-checks

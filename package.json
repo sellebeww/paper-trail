@@ -1,10 +1,10 @@
 {
   "name": "paper-trail",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "description": "Hash-chained evidence notebook for small disputes.",
   "author": "Vassel Goleyu",
-  "license": "UNLICENSED",
+  "license": "Apache-2.0",
   "type": "module",
   "packageManager": "pnpm@10.34.9",
   "engines": {
@@ -20,9 +20,11 @@
     "infra:up": "test -f .env || cp .env.example .env; docker compose up -d --wait",
     "infra:down": "docker compose down",
     "infra:logs": "docker compose logs -f",
-    "test:int": "pnpm --filter @paper-trail/api test:int && pnpm --filter @paper-trail/worker test:int"
+    "test:int": "pnpm --filter @paper-trail/api test:int && pnpm --filter @paper-trail/worker test:int",
+    "demo": "pnpm --filter @paper-trail/api demo:seed"
   },
   "devDependencies": {
+    "@paper-trail/verifier": "workspace:*",
     "@types/node": "^26.6.6",
     "eslint": "^10.14.0",
     "prettier": "^3.9.10",

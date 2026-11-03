@@ -1,3 +1,14 @@
 packages:
   - apps/*
   - packages/*
+
+# Security overrides for transitive dev-only dependencies (pnpm audit, docs/SECURITY.md §Dependencies).
+overrides:
+  lodash@<4.18.0: ^4.18.1
+  minimatch@<11.0.1: ^11.0.1
+
+# Install scripts allowed to run (pnpm 10 blocks all others): Prisma's migration engine and esbuild's binary.
+onlyBuiltDependencies:
+  - '@prisma/engines'
+  - esbuild
+  - prisma

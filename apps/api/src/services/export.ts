@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Vassel Goleyu. All rights reserved.
+// Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
 import {
   buildEvidencePack,
   type AnchorRecord,
@@ -14,7 +14,7 @@ import type { ObjectStore } from '../storage.js';
 import { ALLOWED_TYPES } from '../uploads.js';
 import { toChainEntry } from './ledger.js';
 
-export const GENERATOR = { name: 'paper-trail', version: '0.0.0' } as const;
+export const GENERATOR = { name: 'paper-trail', version: '0.1.0' } as const;
 
 export interface ExportOptions {
   fromSeq?: number;
@@ -187,8 +187,9 @@ const README_ID = [
   '  files/      berkas lampiran, diberi nama sesuai kode SHA-256 isinya',
   '',
   'Cara memeriksa (tanpa akun, tanpa internet):',
-  '  papertrail-verify paket.zip --roots akar-tsa.pem',
-  'atau tempel pack.json di halaman verifikasi Paper Trail.',
+  '  npx paper-trail-verify paket.zip --roots akar-tsa.pem',
+  'atau buka halaman /verify Paper Trail (pemeriksaan berjalan di browser, paket tidak dikirim),',
+  'atau ikuti docs/VERIFY.md untuk memeriksa hanya dengan Python dan OpenSSL.',
   '',
   'Paper Trail membantu membuktikan bahwa catatan tidak diubah setelah dibuat dan kapan catatan itu ada.',
   'Ini bukan nasihat hukum dan tidak menjamin penerimaan sebagai alat bukti. Konsultasikan dengan pendamping hukum.',
