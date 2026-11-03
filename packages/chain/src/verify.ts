@@ -22,7 +22,7 @@ export type ChainErrorCode =
   | 'WITNESS_TARGET_MISMATCH';
 
 export type ChainVerification =
-  | { ok: true; code: 'CHAIN_OK'; length: number; details: string }
+  | { ok: true; code: 'CHAIN_OK'; length: number; details: string; notes: string[] }
   | { ok: false; code: ChainErrorCode; brokenAtSeq: number; details: string };
 
 const fail = (code: ChainErrorCode, brokenAtSeq: number, details: string): ChainVerification => ({
@@ -55,67 +55,102 @@ const shapeProblem = (e: Record<string, unknown>): string | null => {
   return null;
 };
 
+export interface ChainOptions {
+  /**
+   * Verify a contiguous segment instead of a whole ledger (SPEC §6.2). The first entry must have
+   * `seq = fromSeq` and `prev_hash = firstPrevHash`. For `fromSeq = 0` the genesis rules apply and
+   * `firstPrevHash` must be 64 zeros.
+   */
+  segment?: { fromSeq: number; firstPrevHash: string };
+}
+
 /**
- * Verifies a full chain from seq 0 (SPEC §8 steps 2–3). Stops at the first error because every
- * later hash depends on it. `brokenAtSeq` is the chain position (the expected seq) where it failed.
+ * Verifies a chain, or a segment of one (SPEC §8 steps 2–3). Stops at the first error because every
+ * later hash depends on it. `brokenAtSeq` is the entry's seq where it failed.
  * Input is treated as untrusted: shape is checked before anything is hashed.
  */
-export const verifyChain = (entries: readonly Entry[]): ChainVerification => {
+export const verifyChain = (
+  entries: readonly Entry[],
+  options: ChainOptions = {},
+): ChainVerification => {
+  const fromSeq = options.segment?.fromSeq ?? 0;
+  const firstPrevHash = options.segment?.firstPrevHash ?? GENESIS_PREV_HASH;
   if (entries.length === 0)
-    return { ok: true, code: 'CHAIN_OK', length: 0, details: 'empty chain' };
+    return { ok: true, code: 'CHAIN_OK', length: 0, details: 'empty chain', notes: [] };
 
+  const notes: string[] = [];
   let prev: Entry | null = null;
   for (const [i, entry] of entries.entries()) {
+    const seq = fromSeq + i;
     if (entry === null || typeof entry !== 'object')
-      return fail('PACK_MALFORMED', i, 'entry is not an object');
+      return fail('PACK_MALFORMED', seq, 'entry is not an object');
     const problem = shapeProblem(entry as unknown as Record<string, unknown>);
-    if (problem) return fail('PACK_MALFORMED', i, problem);
+    if (problem) return fail('PACK_MALFORMED', seq, problem);
 
+    if (entry.seq !== seq) {
+      return fail(
+        i === 0 && fromSeq === 0 ? 'GENESIS_INVALID' : 'SEQ_GAP',
+        seq,
+        `expected seq ${seq}, found ${entry.seq}`,
+      );
+    }
     if (i === 0) {
-      if (entry.seq !== 0)
-        return fail('GENESIS_INVALID', 0, `first entry has seq ${entry.seq}, expected 0`);
-      if (entry.prev_hash !== GENESIS_PREV_HASH)
-        return fail('GENESIS_INVALID', 0, 'genesis prev_hash is not all zeros');
-      if (entry.type === 'witness_cosign')
-        return fail('GENESIS_INVALID', 0, 'genesis entry cannot be a witness_cosign');
-    } else if (entry.seq !== i) {
-      return fail('SEQ_GAP', i, `expected seq ${i}, found ${entry.seq}`);
+      if (fromSeq === 0) {
+        if (entry.prev_hash !== GENESIS_PREV_HASH)
+          return fail('GENESIS_INVALID', 0, 'genesis prev_hash is not all zeros');
+        if (entry.type === 'witness_cosign')
+          return fail('GENESIS_INVALID', 0, 'genesis entry cannot be a witness_cosign');
+      } else if (entry.prev_hash !== firstPrevHash) {
+        return fail('BROKEN_AT_SEQ', seq, 'prev_hash does not match the segment’s first_prev_hash');
+      }
     }
 
     if (prev && entry.ledger_id !== prev.ledger_id) {
-      return fail('LEDGER_MISMATCH', i, `entry belongs to ledger ${entry.ledger_id}`);
+      return fail('LEDGER_MISMATCH', seq, `entry belongs to ledger ${entry.ledger_id}`);
     }
     if (prev && entry.prev_hash !== prev.entry_hash) {
-      return fail('BROKEN_AT_SEQ', i, 'prev_hash does not match the previous entry_hash');
+      return fail('BROKEN_AT_SEQ', seq, 'prev_hash does not match the previous entry_hash');
     }
     if (computeEntryHash(entry) !== entry.entry_hash) {
-      return fail('BROKEN_AT_SEQ', i, 'entry_hash does not match the recomputed hash');
+      return fail('BROKEN_AT_SEQ', seq, 'entry_hash does not match the recomputed hash');
     }
     if (entry.payload !== undefined) {
       let payloadHash: string;
       try {
         payloadHash = computePayloadHash(entry.payload);
       } catch (err) {
-        return fail('PACK_MALFORMED', i, `payload cannot be hashed: ${(err as Error).message}`);
+        return fail('PACK_MALFORMED', seq, `payload cannot be hashed: ${(err as Error).message}`);
       }
       if (payloadHash !== entry.payload_hash) {
-        return fail('PAYLOAD_HASH_MISMATCH', i, 'payload does not match payload_hash');
+        return fail('PAYLOAD_HASH_MISMATCH', seq, 'payload does not match payload_hash');
       }
     }
     if (prev && entry.created_at < prev.created_at) {
-      return fail('TIME_REGRESSION', i, 'created_at is earlier than the previous entry');
+      return fail('TIME_REGRESSION', seq, 'created_at is earlier than the previous entry');
     }
     // SPEC §8 step 6. An undisclosed cosign payload cannot be checked; the chain still holds.
     if (entry.type === 'witness_cosign' && entry.payload !== undefined) {
       const p = entry.payload as Record<string, unknown>;
       const check = verifyWitnessSignature(entry.ledger_id, p);
-      if (!check.ok) return fail('WITNESS_SIG_INVALID', i, check.reason);
+      if (!check.ok) return fail('WITNESS_SIG_INVALID', seq, check.reason);
       if (entry.author_ref !== witnessAuthorRef(p['witness_pub'] as string)) {
-        return fail('WITNESS_SIG_INVALID', i, 'author_ref does not match the witness key');
+        return fail('WITNESS_SIG_INVALID', seq, 'author_ref does not match the witness key');
       }
       const target = p['target_seq'] as number;
-      if (target >= i || entries[target]?.entry_hash !== p['target_entry_hash']) {
-        return fail('WITNESS_TARGET_MISMATCH', i, `cosign does not match entry ${target}`);
+      if (target >= seq) {
+        return fail(
+          'WITNESS_TARGET_MISMATCH',
+          seq,
+          `cosign targets entry ${target}, not an earlier entry`,
+        );
+      }
+      if (target < fromSeq) {
+        // The signature is valid, but the entry it vouches for is outside this segment.
+        notes.push(
+          `cosign ${seq}: target entry ${target} is outside the exported range and was not checked`,
+        );
+      } else if (entries[target - fromSeq]?.entry_hash !== p['target_entry_hash']) {
+        return fail('WITNESS_TARGET_MISMATCH', seq, `cosign does not match entry ${target}`);
       }
     }
     prev = entry;
@@ -125,5 +160,6 @@ export const verifyChain = (entries: readonly Entry[]): ChainVerification => {
     code: 'CHAIN_OK',
     length: entries.length,
     details: `${entries.length} entries intact`,
+    notes,
   };
 };

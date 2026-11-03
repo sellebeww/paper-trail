@@ -76,27 +76,62 @@ export interface WitnessMessage extends Omit<WitnessCosignPayload, 'signature'> 
   ledger_id: string;
 }
 
-/** Stored RFC 3161 anchor (SPEC §5.2). */
+/** An RFC 3161 anchor as exported (SPEC §5.2). */
 export interface AnchorRecord {
   v: 1;
   ledger_id: string;
   head_seq: number;
   head_hash: Hex;
+  /** Equal to head_hash (SPEC §5.1). */
   anchor_digest: Hex;
   tsa_label: string;
+  /** TimeStampToken, DER, base64url. */
   tst: string;
-  certs?: string[];
-  requested_at: Timestamp;
+  /** Certificates found in the token, DER base64url. Informational; the token itself is authoritative. */
+  certs: string[];
+  /** genTime as read from the token when exported. Informational; verifiers read it from `tst`. */
+  gen_time: Timestamp;
 }
 
-/** Evidence pack (SPEC §6). */
+export const PACK_FORMAT_VERSION = '1.0';
+
+/** One witness signature, summarised for readers (SPEC §6). Derived from a disclosed cosign entry. */
+export interface WitnessSummary {
+  entry_seq: number;
+  target_seq: number;
+  witness_name: string;
+  alg: WitnessAlg;
+  witness_pub: string;
+  signature: string;
+  /** JCS of the signed message (SPEC §4.1), exactly the string that was signed. */
+  signed_message: string;
+}
+
+export interface PackScope {
+  /** First and last entry in `entries`. */
+  from_seq: number;
+  to_seq: number;
+  /** `prev_hash` of entry `from_seq`: 64 zeros when `from_seq` is 0. An unproven claim otherwise (SPEC §6.2). */
+  first_prev_hash: Hex;
+  /** Last entry whose payload the owner chose to cover; entries after it are envelope-only bridge entries. */
+  requested_to_seq: number;
+  /** The ledger's head when the pack was made. Informational. */
+  ledger_head_seq: number;
+}
+
+/** Evidence pack v1.0 (SPEC §6). */
 export interface EvidencePack {
-  format_version: '0.1';
+  format_version: typeof PACK_FORMAT_VERSION;
   generated_at: Timestamp;
   generator: { name: string; version: string };
-  ledger: { id: string; title?: string };
+  ledger: { id: string; title?: string; category?: string };
+  scope: PackScope;
+  /** The last entry in `entries`. */
   head: { seq: number; hash: Hex };
   entries: Entry[];
+  witnesses: WitnessSummary[];
   anchors: AnchorRecord[];
   disclosure: { payloads_included: number[]; files_included: Hex[] };
+  /** SHA-256 of JCS(pack without this field). A checksum and identifier, not a signature (SPEC §6.3). */
+  pack_hash: Hex;
 }
