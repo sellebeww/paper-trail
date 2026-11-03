@@ -20,7 +20,7 @@
     "infra:up": "test -f .env || cp .env.example .env; docker compose up -d --wait",
     "infra:down": "docker compose down",
     "infra:logs": "docker compose logs -f",
-    "test:int": "pnpm --filter @paper-trail/api test:int"
+    "test:int": "pnpm --filter @paper-trail/api test:int && pnpm --filter @paper-trail/worker test:int"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

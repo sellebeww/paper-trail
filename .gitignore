@@ -8,3 +8,4 @@ coverage
 .DS_Store
 .vite
 apps/api/src/generated
+.mock-tsa-ca.pem
