@@ -186,6 +186,47 @@ itself, verifies, and appends the `witness_cosign` entry in the same transaction
 - Responses carry `Cache-Control: no-store` and `Referrer-Policy: no-referrer`; request logs show `/witness/:token`.
 - The POST needs the CSRF header like every other POST (the page gets it from `GET /auth/csrf`).
 
+### Export (evidence pack and PDF)
+
+| Method & path                 | Body / query                                            | Response                                     |
+| ----------------------------- | ------------------------------------------------------- | -------------------------------------------- |
+| `POST /ledgers/:id/export`    | JSON body, all fields optional (below)                  | `200` the pack (`application/json`) or a zip |
+| `GET /ledgers/:id/export.pdf` | Same selection as query parameters, plus `generated_at` | `200 application/pdf`                        |
+
+Body of `POST … /export` (unknown fields are rejected):
+
+| Field                  | Meaning                                                                                                                                 |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `from_seq`, `to_seq`   | Inclusive range of entry numbers. Default: the whole ledger. Cannot be combined with the date form of the same bound.                   |
+| `from_date`, `to_date` | ISO 8601 instants; resolved on the server to the first entry at/after and the last entry at/before them.                                |
+| `payloads`             | `"all"` (default), `"none"`, or a list of seqs whose content to include. Withheld entries keep their hashes.                            |
+| `include_title`        | Default `true`. `false` omits the ledger title from the pack.                                                                           |
+| `anchor_bridge`        | Default `true`. Extend a range that ends before the ledger head with envelope-only entries up to the next confirmed anchor (SPEC §6.2). |
+| `include_files`        | Default `false`. `true` returns a `.zip` with `pack.json`, `README.txt` and `files/<sha256>.<ext>` (disclosed files only).              |
+| `format`               | `json` or `zip`. Defaults from `include_files`; `json` with `include_files` is rejected.                                                |
+
+The response carries `X-Pack-Hash` (the `pack_hash`) and `Content-Disposition: attachment`. Errors: `400 INVALID_RANGE`,
+`400 EMPTY_LEDGER`, `400 VALIDATION_ERROR`, `413 EXPORT_TOO_LARGE` (attachments over `EXPORT_MAX_FILES_BYTES`, default
+100 MB), `429 RATE_LIMITED` (`EXPORT_RATE_LIMIT` per 10 minutes). Exporting only reads; it changes nothing in the ledger.
+
+The PDF takes `from_seq`, `to_seq`, `from_date`, `to_date`, `payloads` (`all`, `none` or `0,3,5`), `include_title`,
+`anchor_bridge`. Its pack hash equals a JSON pack's **only if both are built from the same selection and
+`generated_at`**: pass the JSON pack's `generated_at` (within the last 30 days) as `generated_at` to rebuild an
+identical pack, and compare `X-Pack-Hash`. Characters outside Latin-1 (emoji, other scripts) are drawn as `?` in the PDF;
+the JSON keeps the original text.
+
+```bash
+# the pack, then its PDF with the same hash
+curl -s -b cookies.txt -H "X-CSRF-Token: $CSRF" -H "Content-Type: application/json" -d '{"from_seq":0}' \
+  -D headers.txt -o pack.json "$BASE/ledgers/$LEDGER/export"
+GEN=$(sed -n 's/.*"generated_at": "\([^"]*\)".*/\1/p' pack.json | head -n1)
+curl -s -b cookies.txt -G --data-urlencode "generated_at=$GEN" -o ringkasan.pdf "$BASE/ledgers/$LEDGER/export.pdf"
+papertrail-verify pack.json --roots tsa-roots.pem
+```
+
+Checking a pack needs no account: `papertrail-verify` (packages/verifier) runs offline; see
+[SPEC §8](SPEC.md#8-verification-algorithm) and [examples/README.md](examples/README.md).
+
 ### There is deliberately no edit or delete
 
 There is no `PUT`, `PATCH` or `DELETE` for entries, and none for ledgers. This is the point of the product: a record

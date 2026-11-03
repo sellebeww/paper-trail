@@ -1,0 +1,89 @@
+{
+  "format_version": "1.0",
+  "generated_at": "2026-11-03T03:30:56.273Z",
+  "generator": {
+    "name": "paper-trail",
+    "version": "0.0.0"
+  },
+  "ledger": {
+    "id": "3b1f7a0e-52c4-4d68-9b0e-7a1c2d3e4f50",
+    "title": "CONTOH (data fiktif): sengketa uang lembur",
+    "category": "kerja"
+  },
+  "scope": {
+    "from_seq": 1,
+    "to_seq": 3,
+    "first_prev_hash": "260b2051a059362b68154e9a0b57ee61e2bd11a57eb849009968627d1fa7b4a2",
+    "requested_to_seq": 2,
+    "ledger_head_seq": 5
+  },
+  "head": {
+    "seq": 3,
+    "hash": "4bbee84ff6ec2d01c947117bf8726191f90ef260ba116d98da02ddcc0412a714"
+  },
+  "entries": [
+    {
+      "v": 1,
+      "ledger_id": "3b1f7a0e-52c4-4d68-9b0e-7a1c2d3e4f50",
+      "seq": 1,
+      "type": "note",
+      "created_at": "2026-10-27T11:20:00.000Z",
+      "author_ref": "owner:00000000-0000-4000-8000-000000000001",
+      "payload_hash": "346ccc8cc04c1cd56f23f5240040cf41f4df0fd0437d77d525192fbeb34fa015",
+      "prev_hash": "260b2051a059362b68154e9a0b57ee61e2bd11a57eb849009968627d1fa7b4a2",
+      "entry_hash": "a116c0e5504177b6336aeb9d06288db2c3dc7608f7c87b50942fce8882b81fb1",
+      "payload": {
+        "text": "Selasa: lembur lagi 3 jam. Rekan kerja Budi ikut lembur di bagian yang sama."
+      }
+    },
+    {
+      "v": 1,
+      "ledger_id": "3b1f7a0e-52c4-4d68-9b0e-7a1c2d3e4f50",
+      "seq": 2,
+      "type": "file",
+      "created_at": "2026-10-28T02:00:00.000Z",
+      "author_ref": "owner:00000000-0000-4000-8000-000000000001",
+      "payload_hash": "0bf5d1241b9ef731e998e9cb0f13bb4cc993dc864d56e33b5bc9eb46e6276135",
+      "prev_hash": "a116c0e5504177b6336aeb9d06288db2c3dc7608f7c87b50942fce8882b81fb1",
+      "entry_hash": "f61df7fd0b1b66126503fa77e3a24d012c61f25ad46afd1d9c85c98d4354b2c8",
+      "payload": {
+        "content_sha256": "cabcaf82d0615f779aeb0aa6f52fe08020facaf91bdc4482c27db3c3bb45f1bf",
+        "size": 37,
+        "media_type": "application/pdf",
+        "name": "slip-gaji-oktober.pdf"
+      }
+    },
+    {
+      "v": 1,
+      "ledger_id": "3b1f7a0e-52c4-4d68-9b0e-7a1c2d3e4f50",
+      "seq": 3,
+      "type": "witness_cosign",
+      "created_at": "2026-10-28T05:31:00.000Z",
+      "author_ref": "witness:ab54e695916329805075f3e529293b957d84de73059eddca967e82e32081f223",
+      "payload_hash": "cac75624d5edb7e44f0604c0b8b3b78fa11bf6e2182d5f96e7069f7112b5212c",
+      "prev_hash": "f61df7fd0b1b66126503fa77e3a24d012c61f25ad46afd1d9c85c98d4354b2c8",
+      "entry_hash": "4bbee84ff6ec2d01c947117bf8726191f90ef260ba116d98da02ddcc0412a714"
+    }
+  ],
+  "witnesses": [],
+  "anchors": [
+    {
+      "v": 1,
+      "ledger_id": "3b1f7a0e-52c4-4d68-9b0e-7a1c2d3e4f50",
+      "head_seq": 3,
+      "head_hash": "4bbee84ff6ec2d01c947117bf8726191f90ef260ba116d98da02ddcc0412a714",
+      "anchor_digest": "4bbee84ff6ec2d01c947117bf8726191f90ef260ba116d98da02ddcc0412a714",
+      "tsa_label": "http://mock-tsa.example.invalid/tsr",
+      "tst": "MIIDRAYJKoZIhvcNAQcCoIIDNTCCAzECAQMxDzANBglghkgBZQMEAgEFADB-BgsqhkiG9w0BCRABBKBvJG0EazBpAgEBBgorBgEEAYOyAwEBMDEwDQYJYIZIAWUDBAIBBQAEIEu-6E_27C0ByUcRe_hyYZH5DvJguhFtmNoC3cwEEqcUAgID6RgPMjAyNjExMDMwMzMwNTZaMAMCAQEBAQACCAECAwQFBgcIoIIBaTCCAWUwggEMoAMCAQICAQIwCgYIKoZIzj0EAwIwMDEuMCwGA1UEAwwlUGFwZXIgVHJhaWwgTU9DSyBUU0EgUm9vdCAodW50cnVzdGVkKTAeFw0yNjExMDIwMzMwNTZaFw0yNzExMDMwMzMwNTZaMB8xHTAbBgNVBAMMFFBhcGVyIFRyYWlsIE1PQ0sgVFNBMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEqSNJmneKGhL0KItutCFlDZ48dxzdUl1lHfQTBqHlCR3sARPocC9a_1HUbPMw16l7tzwySEP8AKLBGsZrJLgbnaMoMCYwDAYDVR0TAQH_BAIwADAWBgNVHSUBAf8EDDAKBggrBgEFBQcDCDAKBggqhkjOPQQDAgNHADBEAiAVBTTfxCYcU79mcxe3_X50tKdAPmQ_K9u15_-BVbpNIAIgQ0QU6nATE1IEdYNzshTmXwZE0mmI8iclFwCurpntJGUxggEsMIIBKAIBATA1MDAxLjAsBgNVBAMMJVBhcGVyIFRyYWlsIE1PQ0sgVFNBIFJvb3QgKHVudHJ1c3RlZCkCAQIwDQYJYIZIAWUDBAIBBQCggYYwGgYJKoZIhvcNAQkDMQ0GCyqGSIb3DQEJEAEEMC8GCSqGSIb3DQEJBDEiBCAHY0zKk-WArmR_r43KbSfGWmgA5mxcS3GRR3WxqZDBmTA3BgsqhkiG9w0BCRACLzEoMCYwJDAiBCARuiTSWctJeTdMJsZmfa_TxHNHqvfKziyUEhoglX8_xTAKBggqhkjOPQQDAgRIMEYCIQCu8Uk4wis--Y46uze4zn5dXXO3jvA-ecvw1OkoFLy_jwIhAL0Fo22W4IofP8Lu3vHL1_nbA1d2s11W3uGcWiCr2xPl",
+      "certs": [
+        "MIIBZTCCAQygAwIBAgIBAjAKBggqhkjOPQQDAjAwMS4wLAYDVQQDDCVQYXBlciBUcmFpbCBNT0NLIFRTQSBSb290ICh1bnRydXN0ZWQpMB4XDTI2MTEwMjAzMzA1NloXDTI3MTEwMzAzMzA1NlowHzEdMBsGA1UEAwwUUGFwZXIgVHJhaWwgTU9DSyBUU0EwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAASpI0mad4oaEvQoi260IWUNnjx3HN1SXWUd9BMGoeUJHewBE-hwL1r_UdRs8zDXqXu3PDJIQ_wAosEaxmskuBudoygwJjAMBgNVHRMBAf8EAjAAMBYGA1UdJQEB_wQMMAoGCCsGAQUFBwMIMAoGCCqGSM49BAMCA0cAMEQCIBUFNN_EJhxTv2ZzF7f9fnS0p0A-ZD8r27Xn_4FVuk0gAiBDRBTqcBMTUgR1g3OyFOZfBkTSaYjyJyUXAK6ume0kZQ"
+      ],
+      "gen_time": "2026-11-03T03:30:56.260Z"
+    }
+  ],
+  "disclosure": {
+    "payloads_included": [1, 2],
+    "files_included": []
+  },
+  "pack_hash": "8ee2105182fcb51f2ca1ad06c792c4f3c2ba95648c33e13c48bd70e55489318e"
+}

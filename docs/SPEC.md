@@ -1,7 +1,8 @@
-# Paper Trail Format Specification — Draft v0.4
+# Paper Trail Format Specification — Version 1.0
 
-Status: **draft, pre-alpha**. Nothing here is frozen. Changes from v0.1 are listed in §10. Items marked **[OPEN]** are decisions
-tracked in [OPEN_DECISIONS.md](OPEN_DECISIONS.md). The key words MUST, SHOULD and MAY are used as in RFC 2119.
+Status: **version 1.0**, the first complete format. The product is still pre-alpha; after 1.0, hashed bytes never
+change without a new version number (§9). Changes from earlier drafts are in §10. Items marked **[OPEN]** are
+decisions tracked in [OPEN_DECISIONS.md](OPEN_DECISIONS.md). MUST, SHOULD and MAY are used as in RFC 2119.
 
 This document defines what is hashed, signed, anchored and exported, and how a third party verifies it.
 It is written so that `packages/chain` and `packages/verifier` can be implemented from it alone.
@@ -30,7 +31,7 @@ A **ledger** is one append-only chain owned by one user (for example, one disput
 
 | Field          | Type    | Description                                                                                                                                                                    |
 | -------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `v`            | integer | Entry format version. `1` in this draft.                                                                                                                                       |
+| `v`            | integer | Entry format version. `1`.                                                                                                                                                     |
 | `ledger_id`    | string  | UUID of the ledger. Binding it into the hash prevents splicing an entry into another ledger.                                                                                   |
 | `seq`          | integer | Position in the ledger. `0` for the first entry. Each next entry is exactly previous `seq + 1`.                                                                                |
 | `type`         | string  | One of `note`, `photo`, `file`, `witness_cosign` (see §3).                                                                                                                     |
@@ -219,7 +220,7 @@ So the imprint is simply `head_hash`. Nothing new is hashed, and anyone can chec
 tools and no Paper Trail code: write the envelope JCS to a file and run
 `openssl ts -verify -data envelope.json -in token.der -token_in -CAfile tsa-roots.pem`.
 
-Why not `SHA256(JCS({v, ledger_id, head_seq, head_hash}))` (v0.3) or `SHA256(bytes(head_hash))` (a later proposal)?
+Why not `SHA256(JCS({v, ledger_id, head_seq, head_hash}))` (an earlier draft) or `SHA256(bytes(head_hash))`?
 `head_hash` already commits to `ledger_id`, `seq` and, through `prev_hash`, the whole history, so wrapping or
 re-hashing it adds no security. Both alternatives would also make the timestamped "data" something that exists only
 to be timestamped, which standard verifiers cannot reproduce from the entry itself.
@@ -257,111 +258,262 @@ Choosing providers is **[OPEN]** (OPEN_DECISIONS D1).
 
 Entries `0 … head_seq`, with exactly these hashes, existed **no later than** the token's `genTime`. It proves
 nothing about entries after `head_seq`, and nothing about how much earlier than `genTime` they were made
-(§8 step 9 spells out how `created_at` is checked against this bound).
+(§8 step 10 spells out how `created_at` is checked against this bound). The same is true of a partial export (§6.2): an
+anchor only helps if the anchored head entry is inside the pack.
 
-## 6. Evidence pack (JSON)
+## 6. Evidence pack
 
-A single JSON file that the owner exports and anyone can verify offline.
+An **evidence pack** is what the owner hands to a legal aide, union or mediator. It is one JSON file, or a `.zip`
+when attachments travel with it. Anyone can verify it offline (§8).
+
+### 6.1 Structure
 
 ```json
 {
-  "format_version": "0.1",
-  "generated_at": "2026-11-02T12:00:00.000Z",
+  "format_version": "1.0",
+  "generated_at": "2026-11-03T03:30:56.000Z",
   "generator": { "name": "paper-trail", "version": "0.0.0" },
-  "ledger": { "id": "6f1c0a52-…", "title": "Sengketa lembur Okt 2026" },
-  "head": { "seq": 12, "hash": "…64 hex…" },
-  "entries": [{ "…envelope…": "…", "entry_hash": "…", "payload": {} }],
-  "anchors": [{ "…anchor record…": "…" }],
-  "disclosure": { "payloads_included": [0, 3, 5], "files_included": [] }
+  "ledger": { "id": "3b1f7a0e-…", "title": "Sengketa uang lembur", "category": "kerja" },
+  "scope": {
+    "from_seq": 0,
+    "to_seq": 5,
+    "first_prev_hash": "0000…0000",
+    "requested_to_seq": 5,
+    "ledger_head_seq": 5
+  },
+  "head": { "seq": 5, "hash": "…64 hex…" },
+  "entries": [
+    {
+      "v": 1,
+      "ledger_id": "…",
+      "seq": 0,
+      "type": "note",
+      "created_at": "…",
+      "author_ref": "…",
+      "payload_hash": "…",
+      "prev_hash": "…",
+      "entry_hash": "…",
+      "payload": { "text": "…" }
+    }
+  ],
+  "witnesses": [
+    {
+      "entry_seq": 3,
+      "target_seq": 1,
+      "witness_name": "Budi",
+      "alg": "Ed25519",
+      "witness_pub": "…",
+      "signature": "…",
+      "signed_message": "{\"alg\":\"Ed25519\",…}"
+    }
+  ],
+  "anchors": [
+    {
+      "v": 1,
+      "ledger_id": "…",
+      "head_seq": 5,
+      "head_hash": "…",
+      "anchor_digest": "…",
+      "tsa_label": "https://tsa.example/tsr",
+      "tst": "…base64url DER…",
+      "certs": ["…"],
+      "gen_time": "2026-11-03T03:30:56.000Z"
+    }
+  ],
+  "disclosure": { "payloads_included": [0, 1, 2, 3, 4, 5], "files_included": ["…sha256…"] },
+  "pack_hash": "…64 hex…"
 }
 ```
 
-Rules:
+| Field            | Rules                                                                                                                                                                                                                                                                                                                                                               |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `format_version` | The string `"1.0"`. A verifier MUST reject any other value with `FORMAT_UNSUPPORTED`.                                                                                                                                                                                                                                                                               |
+| `generated_at`   | Server time of export. A label, not evidence; it is covered by `pack_hash`.                                                                                                                                                                                                                                                                                         |
+| `generator`      | Informational.                                                                                                                                                                                                                                                                                                                                                      |
+| `ledger`         | `id` is required. `title` is omitted when the owner withholds it; `category` is one of `kerja`, `sewa`, `freelance`, `gig`, `lainnya`. Neither is hashed into the chain and neither carries evidentiary weight.                                                                                                                                                     |
+| `scope`          | See §6.2. `entries` is exactly `from_seq … to_seq`, contiguous.                                                                                                                                                                                                                                                                                                     |
+| `head`           | The **last entry in the pack** (`to_seq`), not necessarily the ledger's head.                                                                                                                                                                                                                                                                                       |
+| `entries`        | Chain fields exactly as hashed (§2) plus `entry_hash`; `payload` only where disclosed (§6.4). No other fields (no database ids).                                                                                                                                                                                                                                    |
+| `witnesses`      | A summary of every **disclosed** `witness_cosign` entry: the fields a reader needs, plus `signed_message`, the JCS string that was signed (§4.1). It MUST match what the cosign entries contain exactly; the verifier recomputes it.                                                                                                                                |
+| `anchors`        | Confirmed anchors whose `head_seq` lies inside `from_seq … to_seq`. `tst` is the RFC 3161 token, DER, base64url (strict: no padding). `certs` lists the certificates found in the token, DER base64url, for human inspection; the token itself is what is verified. `gen_time` is the token's `genTime` at export, informational; verifiers read it from the token. |
+| `disclosure`     | `payloads_included` lists, ascending, exactly the seqs that carry a `payload`. `files_included` lists sha256 values of files shipped in the zip (§6.5).                                                                                                                                                                                                             |
+| `pack_hash`      | §6.3.                                                                                                                                                                                                                                                                                                                                                               |
 
-- `format_version` is a string. A verifier MUST reject an unknown major version with `FORMAT_UNSUPPORTED`.
-- `entries` MUST contain **every** entry from `seq 0` to `head.seq`, in order. The pack is never a partial
-  range, because the chain cannot be verified from the middle.
-- `payload` is optional per entry. The owner chooses which payloads to disclose; for the rest the envelope
-  (with `payload_hash`) is still present, so the chain verifies without revealing content. The envelope itself
-  always reveals `type`, `created_at` and entry count; the export UI MUST say so.
-- `ledger.title` is optional and not hashed. It is a convenience label and carries no evidentiary weight.
-- Files are referenced by `content_sha256`. Bundling file bytes (for example in a zip next to the JSON) is **[OPEN]**.
-- The pack is a snapshot. It proves nothing about entries made after `generated_at`.
+Packs contain only JSON-safe values (§1): integers, strings, booleans, arrays, objects. No `null`, no floats.
+
+**Offline verification needs the TSA's trust anchors.** A pack carries the TSA certificate (inside every token, because
+the request sets `certReq`) but not the TSA's root. A verifier is given roots explicitly (`--roots`); without them it
+checks signatures and everything else, and says that the certificate chain was not checked (`ANCHOR_UNVERIFIED`).
+
+### 6.2 Selecting a range, and what a partial pack can and cannot prove
+
+The owner may export all entries, a range of seqs, or a range of dates (resolved to seqs on the server). A pack for
+`from_seq > 0` states `scope.first_prev_hash`, the `prev_hash` of its first entry, so the segment can still be hashed
+and linked. `scope.requested_to_seq` is the last seq the owner asked for.
+
+**Anchor bridge.** An anchor only covers entries up to its anchored head, and a verifier can only use it if that head
+is inside the pack. So, unless the owner switches it off, a range that ends before the ledger's head is **extended**
+with entries up to the nearest later confirmed anchor. Those extra entries (`seq > requested_to_seq`) are _bridge
+entries_: envelope only, never a `payload`. They still reveal that the entries exist, their type and their time.
+
+What a verifier can conclude from a partial pack:
+
+| Statement                                                                         | From a partial pack?                                                                                          |
+| --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| The entries shown form an unbroken, unaltered chain segment (`from_seq … to_seq`) | **Yes**                                                                                                       |
+| Disclosed payloads are the ones that were hashed                                  | **Yes**                                                                                                       |
+| Witness signatures on disclosed cosign entries are valid                          | **Yes**. If the target entry lies before `from_seq` the target hash is not checked; reported as an info note. |
+| These entries existed no later than the anchor's `genTime`                        | **Yes, if** an anchored head is inside the pack (every entry up to it is covered)                             |
+| `first_prev_hash` is the real hash of entry `from_seq − 1`                        | **No.** It is a claim. Only an anchor makes the segment as a whole hard to fabricate.                         |
+| What entries `0 … from_seq − 1` contain, or that they exist                       | **No**                                                                                                        |
+| That there are no further entries, or that no other ledger exists                 | **No** (also true of a full pack: it is "what the owner chose to show")                                       |
+| The segment belongs at this position in this ledger                               | **No**, unless an anchor, a witness receipt or a head hash kept outside the system ties it down               |
+
+A fabricated segment with an invented `first_prev_hash` verifies as an internally valid chain. This is not new (an
+owner can fabricate a whole chain, THREAT_MODEL §3.2), but a partial pack makes it cheaper, so a verifier always
+reports `PARTIAL_PACK` and, without an anchor, `NO_ANCHOR`. A pack that starts at seq 0 must have an all-zero
+`first_prev_hash` and is checked against the genesis rules.
+
+### 6.3 `pack_hash`
+
+```
+pack_hash = SHA256( JCS( the pack without the pack_hash field ) )
+```
+
+The hash covers every other byte of the pack, so key order and whitespace do not matter and any change to a value
+changes it. **It is a checksum and an identifier, not a signature**: anyone who edits a pack can recompute it. Its
+uses are (1) to name a pack ("the pack with hash …"); (2) to compare the pack with the hash printed in the PDF summary
+(§6.6) or received through another channel, which exposes a swapped pack; and (3) to catch accidental corruption.
+Real tamper-evidence comes from the chain and the anchors, which a verifier checks independently.
+
+### 6.4 Disclosure
+
+The owner chooses which payloads to disclose: all, none, or a list of seqs. An undisclosed entry still has its full
+envelope with `payload_hash`, so the chain verifies, but a reader learns that the entry exists and its `type` and
+`created_at`. The export UI MUST say so. Undisclosed `witness_cosign` payloads are not checkable, and are neither
+listed in `witnesses` nor an error.
+
+### 6.5 Attachments (zip)
+
+With attachments the pack is a `.zip` containing `pack.json` (the pack, unchanged), `README.txt`, and
+`files/<sha256>.<ext>` for each file of a disclosed `photo`/`file` entry (listed in `disclosure.files_included`).
+A verifier recomputes the SHA-256 of every file and compares it with `content_sha256` in the entry
+(`FILE_HASH_MISMATCH`); a listed file that is absent is `FILE_MISSING` (warning). File names inside the zip are not
+trusted; only content hashes matter. Bundles are size-limited by the exporter and by the verifier.
+
+### 6.6 PDF summary
+
+`GET …/export.pdf` renders the same pack as a short Indonesian document: cover (title, period, number of entries, head
+hash, time of the last anchor), a table of entries (seq, server time, type, summary, first 8 characters of the hash),
+the witnesses, the anchors, a QR code to the verification page with the pack hash, and the neutral legal disclaimer.
+The pack hash on its pages equals the JSON's only if both were built from the same selection and `generated_at`; the
+export API lets a client pass `generated_at` (within the last 30 days) to rebuild an identical pack. The PDF is a
+reading aid. It is not verified by the verifier and carries no more weight than the pack it summarises.
 
 ## 7. Result codes
 
-Verification returns a `verdict` plus a list of findings. Each finding has a `code`, a `severity`
-(`info`, `warning` or `error`), an optional `seq`, and human-readable `detail`.
+Verification returns a `verdict`, a list of findings, and a summary. A finding has a `code`, a `severity`
+(`info`, `warning`, `error`), an optional `seq`, an optional `reason` (for `ANCHOR_INVALID`) and a `detail`.
+`verdict` is `OK` when there is no `error` finding, otherwise `FAILED`. Warnings never change the verdict but MUST be
+shown. User-facing headline (Indonesian): no error → "Rantai utuh" (partial: "Rantai utuh pada rentang yang
+diekspor"); chain error → "Terputus di entri X"; otherwise "Paket tidak lolos pemeriksaan".
 
-| Code                      | Severity | Meaning                                                                                                                                                                   |
-| ------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `CHAIN_OK`                | info     | Hash chain is intact from `seq 0` to head. Emitted only when no chain-level error exists.                                                                                 |
-| `PACK_MALFORMED`          | error    | Not valid JSON, missing required fields, or fields of the wrong type/format (for example uppercase hex).                                                                  |
-| `FORMAT_UNSUPPORTED`      | error    | Unknown `format_version`.                                                                                                                                                 |
-| `GENESIS_INVALID`         | error    | First entry does not have `seq 0` with an all-zero `prev_hash`, or is a `witness_cosign`.                                                                                 |
-| `SEQ_GAP`                 | error    | Missing or duplicated `seq` (`seq` is not previous + 1). `seq` = first offending entry.                                                                                   |
-| `LEDGER_MISMATCH`         | error    | An entry's `ledger_id` differs from the pack's ledger.                                                                                                                    |
-| `BROKEN_AT_SEQ`           | error    | `prev_hash` does not equal the previous `entry_hash`, or `entry_hash` does not recompute. `seq` = first break. `detail` states which.                                     |
-| `PAYLOAD_HASH_MISMATCH`   | error    | A disclosed `payload` does not hash to `payload_hash`.                                                                                                                    |
-| `TIME_REGRESSION`         | error    | `created_at` decreases between consecutive entries.                                                                                                                       |
-| `HEAD_MISMATCH`           | error    | `head.seq`/`head.hash` differ from the last entry.                                                                                                                        |
-| `WITNESS_SIG_INVALID`     | error    | A `witness_cosign` signature does not verify over the reconstructed message, or `author_ref` does not match the key.                                                      |
-| `WITNESS_TARGET_MISMATCH` | error    | Cosign `target_entry_hash` ≠ actual hash at `target_seq`, or `target_seq` ≥ the cosign's own `seq`.                                                                       |
-| `ANCHOR_INVALID`          | error    | An anchor fails a check. `detail` carries a sub-reason: `DIGEST_MISMATCH`, `HEAD_MISMATCH`, `SIGNATURE_INVALID`, `CERT_UNTRUSTED`, `IMPRINT_MISMATCH`, `TOKEN_MALFORMED`. |
-| `ANCHOR_TIME_CONFLICT`    | error    | An entry covered by an anchor has `created_at` later than the anchor's `genTime`. Impossible for an honest server.                                                        |
-| `NO_ANCHOR`               | warning  | The pack has no anchors, so the chain has no external time proof.                                                                                                         |
-| `UNANCHORED_TAIL`         | warning  | Entries after the last anchor's `head_seq` have no external time proof. `seq` = first uncovered entry.                                                                    |
-| `ANCHOR_UNVERIFIED`       | warning  | Anchor signature was not checked because no trusted TSA roots were configured in the verifier.                                                                            |
-
-`verdict` is `OK` when there is no `error` finding, otherwise `FAILED`. Warnings never change the verdict
-but MUST be displayed. User-facing wording (Indonesian): `CHAIN_OK` → "Rantai utuh"; `BROKEN_AT_SEQ` and
-`SEQ_GAP` → "Terputus di entri X".
+| Code                       | Severity     | Meaning                                                                                                                                                                                              |
+| -------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CHAIN_OK`                 | info         | The chain (or segment) is intact. Emitted only when no chain-level error exists.                                                                                                                     |
+| `PACK_MALFORMED`           | error        | Not a JSON object, a required field is missing or has the wrong type or format, or disclosure bookkeeping is inconsistent (including a payload on a bridge entry).                                   |
+| `FORMAT_UNSUPPORTED`       | error        | `format_version` is not `1.0`.                                                                                                                                                                       |
+| `PACK_HASH_MISMATCH`       | error        | `pack_hash` does not match the pack contents (§6.3).                                                                                                                                                 |
+| `SCOPE_INVALID`            | error        | `scope` is inconsistent with `entries` (§6.2), or a pack from seq 0 has a non-zero `first_prev_hash`.                                                                                                |
+| `GENESIS_INVALID`          | error        | Entry 0 has the wrong `prev_hash`, or is a `witness_cosign`, or the first entry is not seq 0 in a pack that claims to start there.                                                                   |
+| `SEQ_GAP`                  | error        | Missing or duplicated `seq`. `seq` = first offending entry.                                                                                                                                          |
+| `LEDGER_MISMATCH`          | error        | An entry's `ledger_id` differs from the others or from `ledger.id`.                                                                                                                                  |
+| `BROKEN_AT_SEQ`            | error        | `prev_hash` does not equal the previous `entry_hash` (or `first_prev_hash`), or `entry_hash` does not recompute. `seq` = first break; `detail` says which.                                           |
+| `PAYLOAD_HASH_MISMATCH`    | error        | A disclosed `payload` does not hash to `payload_hash`.                                                                                                                                               |
+| `TIME_REGRESSION`          | error        | `created_at` decreases between consecutive entries.                                                                                                                                                  |
+| `HEAD_MISMATCH`            | error        | `head` differs from the last entry.                                                                                                                                                                  |
+| `WITNESS_SIG_INVALID`      | error        | A `witness_cosign` signature does not verify, or `author_ref` does not match the key.                                                                                                                |
+| `WITNESS_TARGET_MISMATCH`  | error / info | Error: the cosign's `target_entry_hash` differs from the real hash of `target_seq`, or `target_seq ≥` its own seq. Info: the target lies before `from_seq` and was not checked.                      |
+| `WITNESS_SUMMARY_MISMATCH` | error        | `witnesses[]` differs from what the disclosed cosign entries say.                                                                                                                                    |
+| `ANCHOR_INVALID`           | error        | An anchor fails a check; `reason` is one of `HEAD_MISMATCH` (not inside the pack, or hash differs), `DIGEST_MISMATCH`, `TOKEN_MALFORMED`, `IMPRINT_MISMATCH`, `SIGNATURE_INVALID`, `CERT_UNTRUSTED`. |
+| `ANCHOR_TIME_CONFLICT`     | error        | An entry is newer than the anchor that covers it, beyond the tolerance in §8 step 10. Impossible for an honest server.                                                                               |
+| `FILE_HASH_MISMATCH`       | error        | A file in the zip does not match `content_sha256`.                                                                                                                                                   |
+| `FILE_MISSING`             | warning      | A file listed in `files_included` is not in the zip.                                                                                                                                                 |
+| `PARTIAL_PACK`             | warning      | The pack does not start at seq 0 and/or ends before the ledger's head when it was exported (§6.2).                                                                                                   |
+| `NO_ANCHOR`                | warning      | No usable anchor: nothing in the pack is proven to have existed at a particular time.                                                                                                                |
+| `UNANCHORED_TAIL`          | warning      | Entries after the last verified anchor have no external time proof. `seq` = first uncovered entry.                                                                                                   |
+| `ANCHOR_UNVERIFIED`        | warning      | Tokens were checked without trusted TSA roots (certificate chain not verified), or not checked at all (no token verifier was used).                                                                  |
 
 ## 8. Verification algorithm
 
-Input: an evidence pack; optional set of trusted TSA root certificates. Pure function, no network.
-Stop collecting chain findings at the first chain error (later hashes depend on it), but still report
-independent findings (anchors, witnesses) that can be evaluated.
+Input: a pack (and optionally its files, and trusted TSA roots). The function is pure and offline. Chain checking
+stops at the first chain error, because every later hash depends on it; the pack-level findings before it are kept.
 
-1. **Parse.** Valid JSON, required fields present, all hashes match `^[0-9a-f]{64}$`, timestamps match the
-   fixed format. Else `PACK_MALFORMED`. Check `format_version`, else `FORMAT_UNSUPPORTED`.
-2. **Genesis.** `entries[0].seq == 0`, `prev_hash` is 64 zeros, type is not `witness_cosign`. Else `GENESIS_INVALID`.
-3. **For each entry `i` in order:**
-   1. `seq == i`, else `SEQ_GAP`.
-   2. `ledger_id` equals the pack's `ledger.id` (or, for a bare chain, the ledger of entry 0), else `LEDGER_MISMATCH`.
-   3. `prev_hash` equals `entries[i-1].entry_hash` (genesis for `i = 0`), else `BROKEN_AT_SEQ` (detail: link).
-   4. Recompute `entry_hash` from the envelope with JCS + SHA-256; compare, else `BROKEN_AT_SEQ` (detail: hash).
-   5. If `payload` is present, recompute `SHA256(JCS(payload))`; compare with `payload_hash`, else `PAYLOAD_HASH_MISMATCH`.
-   6. `created_at >= entries[i-1].created_at`, else `TIME_REGRESSION`.
-4. **Head.** `head` equals the last entry's `seq` and `entry_hash`, else `HEAD_MISMATCH`.
-5. **Chain result.** If steps 1–4 produced no error, emit `CHAIN_OK`.
-6. **Witnesses.** For each `witness_cosign` entry whose payload is disclosed: check `target_seq < seq` and
-   `target_entry_hash == entries[target_seq].entry_hash` (else `WITNESS_TARGET_MISMATCH`); rebuild the §4.1
-   message and verify the ECDSA signature with `witness_pub` (else `WITNESS_SIG_INVALID`); check `author_ref`
-   equals `witness:` + SHA-256(`witness_pub`) (else `WITNESS_SIG_INVALID`). Undisclosed cosign payloads are
-   reported as "not checkable", not as errors.
-7. **Anchors.** For each anchor: `head_seq` exists and `head_hash == entries[head_seq].entry_hash`
-   (`ANCHOR_INVALID`/`HEAD_MISMATCH`); check `anchor_digest == head_hash` (`DIGEST_MISMATCH`); parse the token and
-   check `messageImprint` equals `head_hash` (`IMPRINT_MISMATCH`/`TOKEN_MALFORMED`); verify the CMS signature, the ESS
-   signing-certificate attribute, the timeStamping key usage, and the certificate chain against trusted roots
-   (`SIGNATURE_INVALID`/`CERT_UNTRUSTED`). Without trusted roots, skip the chain part and emit `ANCHOR_UNVERIFIED`.
-8. **Coverage.** No anchors → `NO_ANCHOR`. Otherwise let `H` be the highest verified `head_seq`; if
-   `H < head.seq` → `UNANCHORED_TAIL`.
-9. **Time bound.** For each entry, take the earliest verified anchor with `head_seq >= seq`. If the entry's
-   `created_at` is later than that anchor's `genTime` + 1 second + the token's `accuracy` → `ANCHOR_TIME_CONFLICT`.
-   (Many TSAs report `genTime` in whole seconds while `created_at` has milliseconds; without this tolerance an honest
-   anchor made in the same second would be flagged.) The usable guarantee for an entry is "existed no later than
-   that `genTime` (± accuracy)"; `created_at` is the server's claim inside it. The worker refuses to store a token that
-   would trip this check (server clock ahead of the TSA) and retries later.
-10. **Verdict.** `OK` if no `error` finding, else `FAILED`.
+1. **Parse.** The input is a JSON object with the fields of §6.1, hashes match `^[0-9a-f]{64}$`, timestamps match §1.
+   Otherwise `PACK_MALFORMED`. `format_version` must be `"1.0"` (`FORMAT_UNSUPPORTED`).
+2. **Pack checksum.** Recompute `pack_hash` (§6.3); mismatch is `PACK_HASH_MISMATCH` (verification continues).
+3. **Scope.** `to_seq = from_seq + len(entries) − 1`; `requested_to_seq` and `ledger_head_seq` are consistent;
+   `first_prev_hash` is 64 zeros when `from_seq = 0`. Otherwise `SCOPE_INVALID`.
+4. **Chain segment.** For each entry in order, with `seq = from_seq + i`:
+   1. `entry.seq == seq`, else `SEQ_GAP` (`GENESIS_INVALID` for the first entry of a pack that claims to start at 0).
+   2. First entry: `prev_hash == first_prev_hash`; from seq 0 also not a `witness_cosign` (`GENESIS_INVALID`,
+      `BROKEN_AT_SEQ`).
+   3. `ledger_id` equals the first entry's, else `LEDGER_MISMATCH`.
+   4. `prev_hash` equals the previous `entry_hash`, else `BROKEN_AT_SEQ` (link).
+   5. Recompute `entry_hash` (§2.2); mismatch is `BROKEN_AT_SEQ` (hash).
+   6. A present `payload` hashes to `payload_hash` (§3), else `PAYLOAD_HASH_MISMATCH`.
+   7. `created_at` is not earlier than the previous entry's, else `TIME_REGRESSION`.
+   8. A disclosed `witness_cosign`: rebuild the §4.1 message and verify the signature (`WITNESS_SIG_INVALID`); check
+      `author_ref` equals `witness:` + SHA-256(`witness_pub`) (`WITNESS_SIG_INVALID`); `target_seq` is below the
+      entry's seq, and, if it is inside the pack, `target_entry_hash` equals that entry's hash
+      (`WITNESS_TARGET_MISMATCH`); if it is before `from_seq`, record an info note instead.
+5. **Chain result.** No error so far in steps 3–4 → `CHAIN_OK`. If the chain failed, stop here and report.
+6. **Head and ledger.** `head` equals the last entry (`HEAD_MISMATCH`); `ledger.id` equals the entries' ledger
+   (`LEDGER_MISMATCH`). If `from_seq > 0` or `to_seq < ledger_head_seq`, add `PARTIAL_PACK`.
+7. **Disclosure.** `payloads_included` equals the seqs that carry a payload, and no bridge entry
+   (`seq > requested_to_seq`) carries one (`PACK_MALFORMED`).
+8. **Witness summaries.** Derive the summary of each disclosed cosign entry (§6.1) and compare it with `witnesses[]`
+   (`WITNESS_SUMMARY_MISMATCH`).
+9. **Anchors.** For each anchor: its `head_seq` is inside the pack and `head_hash`/`ledger_id` equal that entry's
+   (`ANCHOR_INVALID`/`HEAD_MISMATCH`); `anchor_digest == head_hash` (`DIGEST_MISMATCH`); `tst` is present and strict
+   base64url (`TOKEN_MALFORMED`). Then verify the token over `UTF-8(JCS(envelope of the head entry))` (§5.1): CMS
+   `SignedData` over a `TSTInfo`; SHA-256 `messageImprint` equal to the digest (`IMPRINT_MISMATCH`); signature with the
+   embedded certificate and the ESS signing-certificate attribute (`SIGNATURE_INVALID`); certificate valid at `genTime`
+   with a critical `id-kp-timeStamping` key usage, and a path to a trusted root when roots are given
+   (`CERT_UNTRUSTED`). Without roots the chain is unchecked: `ANCHOR_UNVERIFIED`. Without any token verifier, anchors
+   are only checked structurally and reported as unverified.
+10. **Coverage and time bound.** No usable anchor → `NO_ANCHOR`. Otherwise let `H` be the highest verified `head_seq`;
+    if `H < to_seq`, `UNANCHORED_TAIL` at `H + 1`. For each entry take the earliest verified anchor with
+    `head_seq ≥ seq`; if the entry's `created_at` is later than that anchor's `genTime` + 1 second + the token's
+    `accuracy` → `ANCHOR_TIME_CONFLICT`. (Many TSAs report `genTime` in whole seconds while `created_at` has
+    milliseconds.) The usable guarantee is "existed no later than that `genTime` (± accuracy)".
+11. **Attachments** (zip only). §6.5.
+12. **Verdict.** `OK` if no finding has severity `error`, otherwise `FAILED`.
+
+The summary also reports: entries, `from_seq`, `to_seq`, whether the pack starts at genesis, whether the chain is
+intact, witnesses verified, anchors verified, and the highest entry covered by a verified anchor.
 
 ## 9. Versioning
 
-- Entry `v`, anchor `v`, and pack `format_version` evolve independently.
-- A change that alters any hashed byte requires a new `v`. Old versions remain verifiable.
-- `0.x` pack versions carry no stability promise.
+- `format_version` (pack), entry `v`, and anchor `v` evolve independently.
+- After 1.0, any change that alters a hashed byte requires a new entry or anchor `v`, and old versions remain
+  verifiable. A pack change that older verifiers cannot read increments the major version of `format_version`; a
+  backwards-compatible addition increments the minor. A verifier rejects a pack with an unknown major version.
+- `pack_hash` is defined over the pack of its own version.
 
 ## 10. Changes
+
+**v1.0** (evidence pack; entry `v` stays `1`):
+
+- New §6: pack structure, `scope` with `first_prev_hash` for partial exports, the anchor bridge, `pack_hash`, disclosure,
+  zip attachments, PDF summary. The pack's `format_version` is now `"1.0"`; earlier `0.x` packs were never produced.
+- `anchors[]` carry `certs` and `gen_time` (replacing the unused `requested_at`); `ledger` carries `category`.
+- `witnesses[]` summary added; must match the cosign entries.
+- Verification (§8) works on segments, checks `pack_hash`, witness summaries, disclosure bookkeeping and attachments;
+  new codes `PACK_HASH_MISMATCH`, `SCOPE_INVALID`, `WITNESS_SUMMARY_MISMATCH`, `FILE_HASH_MISMATCH`, `FILE_MISSING`,
+  `PARTIAL_PACK`. `WITNESS_TARGET_MISMATCH` has an info form for targets outside a partial pack.
+- Verification of an anchor's token moved into the shared `packages/verifier`.
+- Editorial: removed `[OPEN]` markers that were resolved (witness algorithms, zip bundling) and renumbered §6–§10.
 
 **v0.4** (anchoring implemented; entry `v` stays `1`):
 
@@ -406,3 +558,14 @@ entry_hash    = a423b1287ae37ea5e0f675aad051408898f526a272cc8863f11d1177be723950
 
 Reproduce without any Paper Trail code: `printf '%s' '<JCS string>' | shasum -a 256`.
 `packages/chain` pins this vector in `chain.test.ts`.
+
+## Appendix B. Example packs
+
+`docs/examples/` holds packs built from fictional data (see its README): a full pack, a partial pack bridged to an
+anchor, the same full pack as a zip with its file, and the PDF summary. Their anchors come from a local **mock** TSA
+and its throwaway root (`example-tsa-root.pem`), so they demonstrate the format and the verifier but prove nothing about
+real time. Verify offline:
+
+```bash
+papertrail-verify docs/examples/example-pack.json --roots docs/examples/example-tsa-root.pem
+```

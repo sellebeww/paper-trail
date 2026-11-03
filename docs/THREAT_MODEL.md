@@ -89,6 +89,22 @@ An attacker who controls the owner's session can append entries that look authen
 cannot alter past entries. Mitigations: argon2id password hashing, rate limiting, and (planned, not in this step)
 re-authentication for exports and witness-link creation. Account recovery design is **[OPEN]**.
 
+### 3.5 Exports: partial packs and `pack_hash`
+
+- **Partial export.** The owner may export a range. The pack then carries `first_prev_hash`, an unproven claim about
+  the entry before it (SPEC §6.2). The verifier shows `PARTIAL_PACK` and, without an anchor inside the pack,
+  `NO_ANCHOR`. An anchor bridge lets the owner time-prove a range by revealing the type and time of the entries between
+  the range and the next anchor (never their content).
+- **Cherry-picking.** A partial or payload-selective pack proves what it contains, not what was left out (§3.3). The
+  PDF says so in plain language.
+- **`pack_hash` is not a signature.** Anyone can edit a pack and recompute it. It identifies a pack and exposes a swap
+  when the PDF or another channel carries the original hash; tamper-evidence comes from the chain and anchors.
+- **Fabricated segments.** An owner can invent entries, claim they start at entry N with an arbitrary
+  `first_prev_hash`, and obtain a valid-looking segment. Only an anchor or an independently kept head ties a segment to
+  the real ledger, and even an anchor from a public TSA only proves that a hash existed at a time (anyone can timestamp
+  any hash). Paper Trail proves "existed at T and unchanged", not "this came from the real ledger".
+- **Metadata in bridge entries.** Their type, time and number reveal activity patterns even without content.
+
 ## 4. The operator (us)
 
 We assume the operator can read and write the database and can restart services. The design goal is that the

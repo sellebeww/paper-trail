@@ -32,6 +32,7 @@ an entry is true, who really wrote it, or that nothing was left out. See [docs/T
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)     | Components and Mermaid flow diagrams                                       |
 | [docs/API.md](docs/API.md)                       | Owner-side HTTP API, security notes, `curl` quickstart                     |
 | [docs/OPERATIONS.md](docs/OPERATIONS.md)         | Worker runbook: TSA setup, queues, DLQ, manual anchoring                   |
+| [docs/examples/](docs/examples/README.md)        | Example evidence packs (fictional) and how to verify them offline          |
 | [docs/OPEN_DECISIONS.md](docs/OPEN_DECISIONS.md) | Undecided questions with recommendations                                   |
 
 ## Repository layout

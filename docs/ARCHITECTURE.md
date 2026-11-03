@@ -192,21 +192,30 @@ sequenceDiagram
   actor O as Owner
   participant A as apps/api
   participant D as PostgreSQL
+  participant S as MinIO / S3
   actor V as Verifier (legal aide, union)
-  participant P as Verify page or CLI
+  participant P as papertrail-verify (packages/verifier)
 
-  O->>A: Export ledger, choose which payloads to disclose
-  A->>D: Read all entries 0…head and anchors
-  A->>A: Build pack (format_version 0.1), omit undisclosed payloads
-  A-->>O: JSON pack, plus a short Indonesian PDF with the disclaimer
-  O->>V: Hand over pack (any channel)
-  V->>P: Paste pack (or run papertrail-verify)
-  P->>P: Run SPEC §8 locally, no upload
-  P-->>V: "Rantai utuh" or "Terputus di entri X", plus warnings (for example UNANCHORED_TAIL)
+  O->>A: POST /ledgers/:id/export { range, payloads, include_files, anchor_bridge }
+  A->>D: Resolve range, extend to the next confirmed anchor (bridge), read entries and anchors
+  A->>A: buildEvidencePack (packages/chain): disclosure, witnesses[], scope, pack_hash
+  opt include_files
+    A->>S: Read disclosed attachments (size-capped)
+  end
+  A-->>O: pack.json or pack.zip, X-Pack-Hash
+  O->>A: GET /ledgers/:id/export.pdf (same selection + generated_at)
+  A-->>O: PDF summary with the same pack hash and a QR code
+  O->>V: Hand over pack (and PDF) through any channel
+  V->>P: papertrail-verify pack --roots tsa-roots.pem  (offline)
+  P->>P: verifyPack (chain) + token checks (verifier) per SPEC §8
+  P-->>V: "Rantai utuh" or "Terputus di entri X", plus warnings
 ```
 
-The verification page and the CLI share `packages/chain`, so there is one definition of "valid". Neither calls
-our server. Trusting an anchor additionally needs TSA roots supplied to the verifier.
+`packages/chain` builds and checks packs and has no I/O or CMS code. `packages/verifier` adds RFC 3161 token
+verification (also used by the worker), the zip reader and the CLI. The API only reads: it assembles rows into the
+chain's types and hands them to `buildEvidencePack`, so the format has one definition. Neither the verifier nor the
+planned verification page calls our server. Trusting an anchor additionally needs the TSA's roots, supplied by the
+verifier.
 
 ## 6. Runtime and local infrastructure
 
