@@ -1,17 +1,20 @@
 # Examples
 
-Everything here is **fictional** and was produced by `pnpm --filter @paper-trail/api example:pack`. The time-stamp tokens
-come from a local mock TSA with a throwaway CA; they show the format and let the verifier run offline, but they prove
-nothing about real time. Never use the mock TSA outside demos and tests.
+Everything here is **fictional**. Unless stated otherwise it was produced by `pnpm --filter @paper-trail/api example:pack`:
+the time-stamp tokens come from a local mock TSA with a throwaway CA, so they show the format and let the verifier run
+offline, but they prove nothing about real time. Never use the mock TSA outside demos and tests. The exception is
+`example-pack-freetsa.json` below, whose three notes are fictional but whose anchor is a real token.
 
-| File                        | What it is                                                                                     |
-| --------------------------- | ---------------------------------------------------------------------------------------------- |
-| `example-pack.json`         | A full evidence pack: 6 entries, a file entry, a witness co-sign, two anchors (heads 3 and 5). |
-| `example-pack-partial.json` | Entries 1–2 only, bridged by an envelope-only entry 3 to the anchor at head 3 (SPEC §6.2).     |
-| `example-pack.zip`          | The full pack plus `README.txt` and the attached file under `files/` (SPEC §6.5).              |
-| `example-pack.pdf`          | The PDF summary of the full pack (SPEC §6.6).                                                  |
-| `example-tsa-root.pem`      | The mock TSA's root certificate, needed to verify the anchors' certificate chain.              |
-| `quickstart.sh`             | `curl` walkthrough of the owner API ([../API.md](../API.md)).                                  |
+| File                        | What it is                                                                                                |
+| --------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `example-pack.json`         | A full evidence pack: 6 entries, a file entry, a witness co-sign, two anchors (heads 3 and 5).            |
+| `example-pack-partial.json` | Entries 1–2 only, bridged by an envelope-only entry 3 to the anchor at head 3 (SPEC §6.2).                |
+| `example-pack.zip`          | The full pack plus `README.txt` and the attached file under `files/` (SPEC §6.5).                         |
+| `example-pack.pdf`          | The PDF summary of the full pack (SPEC §6.6).                                                             |
+| `example-pack-freetsa.json` | Three fictional notes anchored by the **real** public TSA FreeTSA on 2026-11-03 (genuine RFC 3161 token). |
+| `freetsa-root.pem`          | FreeTSA's root certificate (copied from freetsa.org; fetch your own before trusting it).                  |
+| `example-tsa-root.pem`      | The mock TSA's root certificate, needed to verify the anchors' certificate chain.                         |
+| `quickstart.sh`             | `curl` walkthrough of the owner API ([../API.md](../API.md)).                                             |
 
 Verify a pack offline, without an account or network:
 

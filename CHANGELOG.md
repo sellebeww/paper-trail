@@ -40,6 +40,8 @@ First public pre-alpha. The format is stable (SPEC 1.0); the software is not pro
 
 - Email verification and password reset (one-time links by mail; reset only for verified addresses; reset signs out every
   session). Unverified accounts keep working and see a banner.
+- `pnpm --filter @paper-trail/worker tsa:check` tests a real time-stamping authority with the worker's own client. FreeTSA was
+  checked end to end (worker, CLI, and the Python + OpenSSL steps) and a real-token example pack added.
 - Uploaded files are stored on local disk by default (`STORAGE_DIR`); S3 is optional. Expired sessions are purged hourly.
   The api image is about 500 MB (the Prisma CLI is removed from it).
 - Licensed under **Apache-2.0** (code and specification); previously an "all rights reserved" placeholder.

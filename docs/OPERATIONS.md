@@ -28,6 +28,25 @@ certificate chain. Put the provider's root (and intermediates) in a PEM file and
 the worker checks signatures but not the chain, and logs a warning at start-up. Credentials in a URL
 (`https://user:pass@host/path`) are sent as HTTP Basic auth and are stripped from logs and from the stored `tsa_url`.
 
+### Check a provider before you rely on it
+
+```bash
+TSA_URLS=https://tsa.example/tsr TSA_CA_CERTS=roots.pem pnpm --filter @paper-trail/worker tsa:check
+```
+
+Sends the hash of random bytes (no user data) with the worker's own client and prints what came back: `gen_time`,
+clock skew, accuracy, whether the certificate chain verified, and the round-trip time. Run it from the machine that will
+run the worker.
+
+**Tested with FreeTSA (2026-11-03).** `https://freetsa.org/tsr`, root from `https://freetsa.org/files/cacert.pem`
+(a copy is in [examples/freetsa-root.pem](examples/freetsa-root.pem); get your own from their site). The token
+validated with the chain checked, took about 0.8 s, and states no accuracy. A pack anchored by it,
+[examples/example-pack-freetsa.json](examples/example-pack-freetsa.json), verifies with the CLI and also with the
+Python and OpenSSL steps in [VERIFY.md](VERIFY.md) (`openssl ts -verify`: OK). What its pages say (read them yourself
+before relying on it): free; timestamps may be used commercially; at most **one request per second per IP**; best
+effort, **no SLA**, no uptime or restoration guarantee; no request logs kept. With it set `WORKER_PREFETCH=1` so jobs
+do not run in parallel, and add a second independent TSA to `TSA_URLS` for anything that matters.
+
 ### Offline demo with the mock TSA
 
 ```bash

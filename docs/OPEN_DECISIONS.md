@@ -5,7 +5,7 @@ Items marked **VERIFY** depend on external facts that have **not** been checked;
 
 ## Needs your action before the anchoring step
 
-### D1. Which public TSA to use — VERIFY
+### D1. Which public TSA to use — VERIFY (FreeTSA tested, not chosen)
 
 - **Where it lives:** `TSA_URLS` in `.env`, a comma-separated fallback list tried in order (empty on purpose), plus
   optional `TSA_CA_CERTS` (PEM roots for chain verification). No TSA URL is hard-coded anywhere.
@@ -17,7 +17,9 @@ Items marked **VERIFY** depend on external facts that have **not** been checked;
 - **Why:** a single free TSA is fine for a demo, but it is a single point of failure and its terms may change.
 - **You need to verify:** the provider's terms of service (rate limits, commercial use, retention), availability,
   the TSA certificate chain and its expiry, and whether an Indonesian provider exists and what it requires.
-  I have not checked any of these.
+  I have not checked any of these, except for FreeTSA: it works end to end with this project's worker and verifier (and
+  with OpenSSL) and its stated terms allow commercial use at one request per second, but it is best effort with no SLA
+  ([OPERATIONS.md](OPERATIONS.md#choosing-a-tsa)). Choosing it, a paid TSA, or an Indonesian provider is still yours.
 
 ### D2. Anchor interval
 

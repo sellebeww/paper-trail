@@ -14,7 +14,8 @@
     "test:int": "vitest run -c vitest.int.config.ts",
     "anchor:now": "tsx --conditions=source --env-file-if-exists=../../.env src/cli/anchor-now.ts",
     "db:role": "tsx --env-file-if-exists=../../.env src/cli/db-role.ts",
-    "mock-tsa": "tsx --env-file-if-exists=../../.env src/cli/mock-tsa.ts"
+    "mock-tsa": "tsx --env-file-if-exists=../../.env src/cli/mock-tsa.ts",
+    "tsa:check": "tsx --conditions=source --env-file-if-exists=../../.env src/cli/live-tsa-check.ts"
   },
   "dependencies": {
     "@paper-trail/chain": "workspace:*",

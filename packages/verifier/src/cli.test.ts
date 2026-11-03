@@ -27,6 +27,23 @@ const run = (...args: string[]) => {
 };
 
 describe('paper-trail-verify on the committed examples', () => {
+  it('verifies a pack anchored by a REAL TSA (FreeTSA), with its root, offline', () => {
+    // A genuine RFC 3161 token, not one from our mock: guards against real-world encodings we do not generate.
+    const r = run(
+      join(examples, 'example-pack-freetsa.json'),
+      '--roots',
+      join(examples, 'freetsa-root.pem'),
+    );
+    expect(r.code).toBe(0);
+    expect(r.out).toContain('1 jangkar sah, mencakup sampai entri 2');
+    expect(r.out).not.toContain('PERHATIAN');
+  });
+
+  it('does not accept the real pack against the wrong root: the chain check really runs', () => {
+    const r = run(join(examples, 'example-pack-freetsa.json'), '--roots', roots);
+    expect(r.code).not.toBe(0);
+  });
+
   it.each(['example-pack.json', 'example-pack.zip'])(
     '%s verifies against the example TSA root (exit 0)',
     (file) => {
