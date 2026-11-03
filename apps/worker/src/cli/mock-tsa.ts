@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Vassel Goleyu. All rights reserved.
+// Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
 // Runs the local mock TSA for offline demos. Its tokens are signed by a throwaway CA and prove nothing
 // about real time: never point a real deployment at it. `pnpm --filter @paper-trail/worker mock-tsa`
 import { writeFile } from 'node:fs/promises';

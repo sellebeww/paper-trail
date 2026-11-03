@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Vassel Goleyu. All rights reserved.
+// Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
 // Shared types for the formats in docs/SPEC.md. Field names are snake_case because they are hashed.
 
 /** 64-character lowercase hex SHA-256. */

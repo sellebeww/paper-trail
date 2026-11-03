@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Vassel Goleyu. All rights reserved.
+// Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
 import { canonicalEnvelope, HEX64, type EntryType } from '@paper-trail/chain';
 import { z } from 'zod';
 import type { Pool, Queryable } from './db.js';

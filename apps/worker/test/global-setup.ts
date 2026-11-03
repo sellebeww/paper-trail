@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Vassel Goleyu. All rights reserved.
+// Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
 // Worker integration tests use their own database (and the real RabbitMQ), so they can run alongside the
 // API's integration tests. Same migrations as the API: the schema has one source of truth.
 import { createTestDatabase } from '../../api/test/global-setup.js';

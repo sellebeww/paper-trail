@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Vassel Goleyu. All rights reserved.
+// Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
 // The worker talks to Postgres as a least-privilege role (member of pt_worker): it can read the chain
 // but has no INSERT/UPDATE/DELETE on entries, attachments, witnesses or users (docs/OPERATIONS.md).
 import pg from 'pg';

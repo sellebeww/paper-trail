@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Vassel Goleyu. All rights reserved.
+// Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
 // One-document summary of an evidence pack for readers who will not run a verifier (legal aides, unions).
 // pdfkit: maintained, streaming, small. Trade-off: the built-in fonts are Latin-1 only, so characters outside
 // it (emoji, other scripts) are replaced by "?" here; the JSON pack keeps the original text.

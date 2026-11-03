@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Vassel Goleyu. All rights reserved.
+// Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
 // Regenerates docs/examples/* from fictional data. Anchors come from the local MOCK TSA, whose throwaway CA
 // is written next to the packs so they can be verified offline. The tokens prove nothing about real time.
 //   pnpm --filter @paper-trail/api example:pack

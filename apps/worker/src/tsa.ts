@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Vassel Goleyu. All rights reserved.
+// Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
 // RFC 3161 client: builds TimeStampReq, sends it to the configured TSAs in order, and validates the
 // TimeStampResp before anything is stored. pkijs/asn1js (pure JS) instead of shelling out to `openssl ts`:
 // no argument-injection or temp-file surface, no dependency on the host's OpenSSL/LibreSSL build.

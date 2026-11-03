@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Vassel Goleyu. All rights reserved.
+// Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
 // The only code path that writes entries. ESLint forbids Prisma entry writes anywhere else, and the
 // database rejects any insert that does not extend the chain (see migrations/*_append_only_guards).
 import {

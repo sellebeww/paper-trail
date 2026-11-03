@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Vassel Goleyu. All rights reserved.
+// Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
 import { pipeline } from 'node:stream/promises';
 import type { PayloadObject } from '@paper-trail/chain';
 import { Router, type Response } from 'express';

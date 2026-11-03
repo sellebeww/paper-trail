@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Vassel Goleyu. All rights reserved.
+// Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
 import { createHash, generateKeyPairSync, randomUUID, sign } from 'node:crypto';
 import {
   anchorData,

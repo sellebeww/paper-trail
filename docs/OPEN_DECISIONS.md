@@ -27,10 +27,11 @@ Items marked **VERIFY** depend on external facts that have **not** been checked;
   one request per active ledger per hour is cheap at demo scale. Batching many ledgers into a Merkle tree per TSA
   call would cut calls further but adds proof structure; defer until scale demands it.
 
-### D3. Open-source license
+### D3. Open-source license — decided
 
-- **Current:** `LICENSE` is a placeholder "all rights reserved" and packages are `UNLICENSED`, because no license was chosen.
-- **Recommendation:** Apache-2.0 for `packages/chain` and `packages/verifier` (so anyone can embed the verifier and
+- **Decision (v0.1.0):** Apache-2.0 for code and specification, whole repository; copyright Vassel Goleyu (`NOTICE`).
+  Reasons in the [README](../README.md#license).
+- **Earlier recommendation:** Apache-2.0 for `packages/chain` and `packages/verifier` (so anyone can embed the verifier and
   check evidence without friction), and AGPL-3.0 or Apache-2.0 for the apps depending on whether you want to
   discourage closed hosted forks.
 - **Why:** the value of the format grows with independent verifiers; permissive core, your call on the apps.

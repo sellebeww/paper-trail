@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Vassel Goleyu. All rights reserved.
+// Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
 // Queue anchor jobs now instead of waiting for the next interval (demos, incident recovery).
 //   pnpm --filter @paper-trail/worker anchor:now               every ledger whose head changed
 //   pnpm --filter @paper-trail/worker anchor:now <ledger-id>   that ledger's current head

@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Vassel Goleyu. All rights reserved.
+// Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
 // No Node imports: shared by the server verifier and the witness's browser (via ./browser.ts).
 import type { WitnessCosignPayload, WitnessMessage } from './types.js';
 

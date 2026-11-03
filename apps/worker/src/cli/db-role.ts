@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Vassel Goleyu. All rights reserved.
+// Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
 // Creates (or updates the password of) the worker's login role from WORKER_DATABASE_URL and makes it a
 // member of pt_worker, the least-privilege group role created by the migrations. Runs with the admin
 // connection in DATABASE_URL. `pnpm --filter @paper-trail/worker db:role`

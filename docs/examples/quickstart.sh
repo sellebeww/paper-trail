@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copyright (c) 2026 Vassel Goleyu. All rights reserved.
+# Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
 #
 # Register -> create a ledger -> add a note and a file -> read the head -> read the entries back.
 # Needs only curl, awk and sed. Usage:  BASE=http://localhost:3000 ./docs/examples/quickstart.sh

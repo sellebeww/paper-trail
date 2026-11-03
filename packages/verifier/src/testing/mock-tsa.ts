@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Vassel Goleyu. All rights reserved.
+// Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
 // A local RFC 3161 TSA for tests and offline demos. Its CA is generated at start-up and trusted by nobody
 // else, so its tokens prove nothing about real time. Never configure it in production.
 import { createServer } from 'node:http';

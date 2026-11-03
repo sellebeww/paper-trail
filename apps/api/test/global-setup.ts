@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Vassel Goleyu. All rights reserved.
+// Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
 // Integration tests run against a real Postgres (docker compose), in a dedicated database that is
 // dropped and re-migrated on every run. Entries are append-only, so a fresh database is the only reset.
 import { execFileSync } from 'node:child_process';

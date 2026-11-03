@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Vassel Goleyu. All rights reserved.
+// Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
 import { useEffect, useState, type CSSProperties } from 'react';
 import { createWitnessKey, normalizeName, signInvite, type InviteInfo } from './crypto';
 

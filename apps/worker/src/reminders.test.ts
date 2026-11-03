@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Vassel Goleyu. All rights reserved.
+// Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
 import nodemailer from 'nodemailer';
 import { describe, expect, it } from 'vitest';
 import { ConsoleNotifier, EmailNotifier, maskEmail } from './notifier.js';
