@@ -29,6 +29,8 @@ First public pre-alpha. The format is stable (SPEC 1.0); the software is not pro
   fixtures for testing other verifiers.
 - **Demo**: `pnpm demo` seeds a fictional unpaid-overtime ledger (15 entries, 2 witnesses, 2 anchors from a mock TSA)
   and writes a valid and a tampered pack for `/verify`.
+- **Accessibility**: axe-core (WCAG 2.x A and AA) runs on the main screens in the browser tests, with no violations.
+  Automated only; the screens have not been tried with a screen reader.
 - **Tests**: property-based tests that random mutations of a valid chain are always detected; chaos tests (worker
   killed mid-anchor, RabbitMQ restart, stalled database); browser end-to-end tests.
 - **Operations**: a multi-stage production `Dockerfile` (`api`, `worker`, `web`, `migrate` targets), nginx config with
@@ -79,7 +81,8 @@ Read these before relying on Paper Trail for anything real.
   client (for several hosts) is tested against an in-memory store only, not against a running S3 service.
 - Photo EXIF/GPS metadata is stored as uploaded ([OPEN_DECISIONS D7](docs/OPEN_DECISIONS.md)).
 - Audio and Office uploads are accepted by type detection but not covered by tests.
-- Append-only means **no deletion** of entries, ledgers or accounts, which conflicts with privacy requests; undecided.
+- Append-only means **no deletion** of entries, ledgers or accounts, which conflicts with privacy requests; undecided
+  ([D11](docs/OPEN_DECISIONS.md) has a recommendation).
 - Base images and GitHub Actions are pinned by tag, not by digest or SHA. The production images are built in CI and
   smoke-tested locally, but have not run in a real deployment.
 - The repository has no public remote yet, so the packages carry no `repository` field, and the `@paper-trail` npm

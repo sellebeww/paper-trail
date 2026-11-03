@@ -1,0 +1,18 @@
+# Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
+# Weekly update pull requests for npm packages, GitHub Actions and the Docker base images. Security advisories
+# open pull requests on their own once Dependabot alerts are enabled on the repository (docs/SECURITY.md).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 5
+    groups:
+      dev-tooling:
+        patterns: ['eslint*', 'prettier', 'typescript*', 'vitest', '@types/*', 'tsx']
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }
+  - package-ecosystem: docker
+    directory: /
+    schedule: { interval: weekly }

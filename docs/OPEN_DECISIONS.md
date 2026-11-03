@@ -87,6 +87,26 @@ Items marked **VERIFY** depend on external facts that have **not** been checked;
 - **Recommendation:** UUIDv4 for `ledger_id` (as in SPEC); bigint identity for internal row ids.
 - **Why:** the ledger id is hashed into every entry, so it should be opaque and unguessable.
 
+## Needs a decision before real use
+
+### D11. Deleting data at the owner's request — OPEN
+
+- **The conflict:** entries are append-only by design (database triggers and the hash chain), but people have a right to
+  ask for their personal data to be erased, and an owner may want a ledger gone (for example after a dispute ends or
+  if the account is at risk). Today there is **no deletion at all**: not of an entry, a ledger, an upload or an account.
+- **Recommendation: erase content, keep the skeleton.** The format already allows an entry whose payload is not
+  disclosed (SPEC §6): the chain still verifies from `payload_hash`. So deletion would (1) remove the payload
+  and stored files of the chosen entries or ledger, keeping each entry's hashes, sequence number and time; (2) delete
+  the account's email, password hash and sessions; (3) record an `erased_at` marker. Packs exported earlier keep
+  working; packs exported later show the entries as undisclosed. This needs a controlled path through the append-only
+  trigger (only `payload` may become empty, and only through one audited function), a new migration, and an API and UI
+  flow with a clear warning that it cannot be undone.
+- **What it does not do:** copies already exported or already held by witnesses and other people are out of our hands,
+  and a short low-entropy text could in theory be guessed from its retained hash.
+- **Why it is yours to decide:** it touches legal obligations (Indonesia's personal data protection law, UU PDP 27/2022,
+  and whatever applies where you host) that I have not checked, and it changes what the product promises. Until it is
+  decided, do not use real data.
+
 ## Already decided in Step 1 (tell me if you disagree)
 
 | Decision                                                       | Reason                                                                                                    |

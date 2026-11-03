@@ -119,7 +119,7 @@ Next, roughly in order:
 
 1. Choose and document a production TSA (with its trust roots), and run a real deployment.
 2. A shared rate-limit store, so the API can run on more than one instance.
-3. A policy for data deletion and privacy requests that respects the append-only chain.
+3. Deleting data at the owner's request without breaking the chain ([D11](docs/OPEN_DECISIONS.md), recommendation written, needs your decision).
 4. Optional EXIF/GPS stripping for photos ([D7](docs/OPEN_DECISIONS.md)).
 5. Server-signed receipts ([D6](docs/OPEN_DECISIONS.md)) and, if legal aides need it, witness identity options
    ([D5](docs/OPEN_DECISIONS.md)).
