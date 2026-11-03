@@ -324,6 +324,7 @@ describe('owner flow', () => {
     await button(page, 'Buat akun').click();
     await page.getByRole('heading', { name: 'Ledger saya' }).waitFor();
     await page.getByText(/Email Anda belum diverifikasi/).waitFor();
+    await shot(page, '6-unverified-banner');
 
     const verifyLink = await linkFor(/Verifikasi email/);
     expect(new URL(verifyLink).pathname).toBe('/konfirmasi-email');
@@ -345,11 +346,13 @@ describe('owner flow', () => {
     await page.getByLabel('Email').fill(email);
     await button(page, 'Kirim tautan').click();
     await page.getByText(/tautan sudah dikirim/).waitFor();
+    await shot(page, '7-forgot-sent');
 
     const resetLink = await linkFor(/Atur ulang kata sandi/);
     await page.goto(resetLink);
     await page.getByRole('heading', { name: 'Pilih kata sandi baru' }).waitFor();
     expect(page.url()).not.toContain('#');
+    await shot(page, '8-reset-form');
     await page.getByLabel('Kata sandi baru').fill(NEW_PASSWORD);
     await button(page, 'Simpan kata sandi baru').click();
     await page.getByText(/Kata sandi sudah diganti/).waitFor();
