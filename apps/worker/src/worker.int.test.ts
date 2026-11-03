@@ -9,7 +9,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { testDatabaseUrls } from '../../api/test/global-setup.js';
 import { WORKER_TEST_DB } from '../test/global-setup.js';
 import { loadConfig } from './config.js';
-import { createMockTsa, type MockTsa } from './dev/mock-tsa.js';
+import { createMockTsa, type MockTsa } from '@paper-trail/verifier/testing';
 import { allQueues, deadLetterQueue, publishJson } from './messaging.js';
 import type { Notification } from './notifier.js';
 import { requestTimestamp } from './tsa.js';

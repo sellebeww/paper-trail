@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@paper-trail/chain": "workspace:*",
+    "@paper-trail/verifier": "workspace:*",
     "amqplib": "^2.2.1",
     "asn1js": "^4.0.0",
     "nodemailer": "^10.3.1",

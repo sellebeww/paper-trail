@@ -2,8 +2,9 @@
 import { createHash } from 'node:crypto';
 import * as pkijs from 'pkijs';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { createMockTsa, type MockTsa, type MockTsaMode } from './dev/mock-tsa.js';
-import { OID, redactUrl, requestTimestamp, TsaError, type TsaConfig } from './tsa.js';
+import { createMockTsa, type MockTsa, type MockTsaMode } from '@paper-trail/verifier/testing';
+import { OID } from '@paper-trail/verifier';
+import { redactUrl, requestTimestamp, TsaError, type TsaConfig } from './tsa.js';
 
 let tsa: MockTsa;
 let otherTsa: MockTsa; // a different, unrelated CA

@@ -3,7 +3,7 @@
 // about real time: never point a real deployment at it. `pnpm --filter @paper-trail/worker mock-tsa`
 import { writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { createMockTsa } from '../dev/mock-tsa.js';
+import { createMockTsa } from '@paper-trail/verifier/testing';
 
 const port = Number(process.env['MOCK_TSA_PORT'] ?? 3318);
 const caOut = resolve(
