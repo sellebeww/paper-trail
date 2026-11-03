@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Vassel Goleyu. All rights reserved.
+// Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
 import { verifyWitnessSignature } from '@paper-trail/chain';
 import { describe, expect, it } from 'vitest';
 import { createWitnessKey, signInvite, type InviteInfo } from './crypto';
@@ -35,7 +35,9 @@ describe('witness signing in the browser', () => {
     expect(key.alg).toBe('Ed25519');
     const body = await signInvite(info, '  Siti 😀 ', key);
     expect(body.witness_name).toBe('Siti 😀');
-    expect(verifyWitnessSignature(info.entry.ledger_id, asPayload(body))).toEqual({ ok: true });
+    expect(await verifyWitnessSignature(info.entry.ledger_id, asPayload(body))).toEqual({
+      ok: true,
+    });
   });
 
   it('falls back to ECDSA P-256 when the browser has no Ed25519', async () => {
@@ -56,13 +58,15 @@ describe('witness signing in the browser', () => {
     const key = await createWitnessKey(oldBrowser);
     expect(key.alg).toBe('ES256');
     const body = await signInvite(info, 'Siti', key, new Date(), oldBrowser);
-    expect(verifyWitnessSignature(info.entry.ledger_id, asPayload(body))).toEqual({ ok: true });
+    expect(await verifyWitnessSignature(info.entry.ledger_id, asPayload(body))).toEqual({
+      ok: true,
+    });
   });
 
   it('normalizes the name to NFC before signing (the server rejects anything else)', async () => {
     const body = await signInvite(info, 'Café', await createWitnessKey());
     expect(body.witness_name).toBe('Café');
-    expect(verifyWitnessSignature(info.entry.ledger_id, asPayload(body)).ok).toBe(true);
+    expect((await verifyWitnessSignature(info.entry.ledger_id, asPayload(body))).ok).toBe(true);
   });
 
   it('keeps the private key non-extractable', async () => {

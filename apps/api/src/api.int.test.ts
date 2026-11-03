@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Vassel Goleyu. All rights reserved.
+// Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { computePayloadHash, verifyChain, type Entry } from '@paper-trail/chain';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -284,7 +284,7 @@ describe('ledgers and note entries', () => {
     const res = await addNote(c, id, 'Café 😀');
     expect(res.body.entry.payload.text).toBe('Café 😀');
     const list = await c.json('GET', `/ledgers/${id}/entries`);
-    expect(verifyChain(list.body.entries as Entry[]).ok).toBe(true);
+    expect((await verifyChain(list.body.entries as Entry[])).ok).toBe(true);
   });
 
   it('validates input and never leaks internals', async () => {
@@ -430,7 +430,7 @@ describe('uploads', () => {
     expect(sha256(new Uint8Array(await download.arrayBuffer()))).toBe(sha256(bytes));
 
     const list = await c.json('GET', `/ledgers/${id}/entries`);
-    expect(verifyChain(list.body.entries as Entry[]).ok).toBe(true);
+    expect((await verifyChain(list.body.entries as Entry[])).ok).toBe(true);
   });
 
   it('accepts a photo, ignores the claimed MIME type, and keeps an optional caption', async () => {
@@ -588,7 +588,7 @@ describe('pagination', () => {
 
     expect(seen.map((e) => e.seq)).toEqual(Array.from({ length: seen.length }, (_, i) => i));
     expect(seen).toHaveLength(16);
-    expect(verifyChain(seen).ok).toBe(true);
+    expect((await verifyChain(seen)).ok).toBe(true);
     expect((await c.json('GET', `/ledgers/${id}/head`)).body.head_seq).toBe(15);
   });
 

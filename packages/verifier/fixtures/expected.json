@@ -1,0 +1,54 @@
+[
+  {
+    "file": "valid.json",
+    "description": "The Step 6 example pack, unchanged.",
+    "exit": 0,
+    "headline": "Rantai utuh"
+  },
+  {
+    "file": "entry-modified.json",
+    "description": "The text of entry 1 was changed after the fact.",
+    "exit": 1,
+    "headline": "Terputus di entri 1",
+    "code": "PAYLOAD_HASH_MISMATCH",
+    "seq": 1
+  },
+  {
+    "file": "entry-deleted.json",
+    "description": "Entry 4 was removed and the scope adjusted to hide it.",
+    "exit": 1,
+    "headline": "Terputus di entri 4",
+    "code": "SEQ_GAP",
+    "seq": 4
+  },
+  {
+    "file": "fake-witness.json",
+    "description": "The witness name was changed and every hash after it recomputed; the signature no longer matches.",
+    "exit": 4,
+    "headline": "Paket tidak lolos pemeriksaan: tanda tangan saksi di entri 3 tidak sah",
+    "code": "WITNESS_SIG_INVALID",
+    "seq": 3
+  },
+  {
+    "file": "fake-anchor.json",
+    "description": "The anchor for entry 5 carries the token of another head (a genuine token, for the wrong data).",
+    "exit": 5,
+    "headline": "Paket tidak lolos pemeriksaan: jangkar waktu untuk entri 5 tidak sah",
+    "code": "ANCHOR_INVALID",
+    "seq": 5
+  },
+  {
+    "file": "wrong-pack-hash.json",
+    "description": "Content unchanged, but pack_hash belongs to different content.",
+    "exit": 3,
+    "headline": "Isi paket berbeda dari sidik jarinya (paket diubah)",
+    "code": "PACK_HASH_MISMATCH"
+  },
+  {
+    "file": "unknown-version.json",
+    "description": "format_version is not one this verifier knows.",
+    "exit": 2,
+    "headline": "Paket tidak lolos pemeriksaan: versi format paket tidak dikenal",
+    "code": "FORMAT_UNSUPPORTED"
+  }
+]

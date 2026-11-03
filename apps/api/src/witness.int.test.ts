@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Vassel Goleyu. All rights reserved.
+// Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
 import { createHash, generateKeyPairSync, randomBytes, sign, type KeyObject } from 'node:crypto';
 import {
   buildWitnessMessage,
@@ -222,7 +222,7 @@ describe('witness: viewing and signing', () => {
       delete signed.purpose;
       delete signed.ledger_id;
       expect(
-        verifyWitnessSignature(ledger_id, { ...signed, signature: receipt.signature }),
+        await verifyWitnessSignature(ledger_id, { ...signed, signature: receipt.signature }),
       ).toEqual({ ok: true });
 
       const chain = (await owner.json('GET', `/ledgers/${ledger.id}/entries`)).body
@@ -235,7 +235,7 @@ describe('witness: viewing and signing', () => {
         target_entry_hash: entry.entry_hash,
         invite_id: invite.id,
       });
-      expect(verifyChain(chain)).toMatchObject({ ok: true, length: 2 }); // chain stays valid, signature included
+      expect(await verifyChain(chain)).toMatchObject({ ok: true, length: 2 }); // chain stays valid, signature included
 
       const list = await owner.json('GET', `/entries/${entry.id}/witness-invites`);
       expect(list.body.invites[0]).toMatchObject({
@@ -263,7 +263,7 @@ describe('witness: viewing and signing', () => {
     const chain = (await owner.json('GET', `/ledgers/${ledger.id}/entries`)).body
       .entries as Entry[];
     expect(chain.filter((e) => e.type === 'witness_cosign')).toHaveLength(1);
-    expect(verifyChain(chain).ok).toBe(true);
+    expect((await verifyChain(chain)).ok).toBe(true);
     expect(await app.db.witness.count({ where: { ledgerId: ledger.id } })).toBe(1);
   });
 
@@ -282,7 +282,7 @@ describe('witness: viewing and signing', () => {
     const chain = (await owner.json('GET', `/ledgers/${ledger.id}/entries`)).body
       .entries as Entry[];
     expect(chain).toHaveLength(2);
-    expect(verifyChain(chain).ok).toBe(true);
+    expect((await verifyChain(chain)).ok).toBe(true);
   });
 
   it('rejects a wrong signature and a signature over a modified message, without using up the token', async () => {

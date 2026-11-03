@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Vassel Goleyu. All rights reserved.
+// Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
 import {
   buildWitnessMessage,
   isValidWitnessName,
@@ -263,7 +263,7 @@ export const witnessRoutes = ({ db, store, config }: AppContext): Router => {
       signed_client_time: body.signed_client_time,
       signature: body.signature,
     };
-    const check = verifyWitnessSignature(invite.ledgerId, payload);
+    const check = await verifyWitnessSignature(invite.ledgerId, payload);
     if (!check.ok)
       throw new AppError(
         400,

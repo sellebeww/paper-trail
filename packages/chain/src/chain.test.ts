@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Vassel Goleyu. All rights reserved.
+// Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from 'vitest';
 import {
   buildEntry,
@@ -108,10 +108,10 @@ describe('payload hashing', () => {
     );
   });
 
-  it('handles Unicode and emoji, and verifies them in a chain', () => {
+  it('handles Unicode and emoji, and verifies them in a chain', async () => {
     const text = 'Gaji belum dibayar 😡 — Rp1.500.000 · ñ · 中文 · 👩🏽‍🔧';
     const e = buildEntry(input(0, { text }), null);
-    expect(verifyChain([e]).ok).toBe(true);
+    expect((await verifyChain([e])).ok).toBe(true);
     expect(computePayloadHash({ text })).toBe(sha256Hex(`{"text":"${text}"}`));
   });
 
@@ -123,53 +123,57 @@ describe('payload hashing', () => {
 });
 
 describe('verifyChain', () => {
-  it('accepts a valid chain', () => {
-    expect(verifyChain(makeChain(5))).toMatchObject({ ok: true, code: 'CHAIN_OK', length: 5 });
+  it('accepts a valid chain', async () => {
+    expect(await verifyChain(makeChain(5))).toMatchObject({
+      ok: true,
+      code: 'CHAIN_OK',
+      length: 5,
+    });
   });
 
-  it('accepts an empty chain and a chain with undisclosed payloads', () => {
-    expect(verifyChain([]).ok).toBe(true);
+  it('accepts an empty chain and a chain with undisclosed payloads', async () => {
+    expect((await verifyChain([])).ok).toBe(true);
     const hidden = makeChain(3).map(({ payload: _payload, ...rest }) => rest);
-    expect(verifyChain(hidden).ok).toBe(true);
+    expect((await verifyChain(hidden)).ok).toBe(true);
   });
 
   describe('middle entry modified', () => {
-    it('payload changed only → PAYLOAD_HASH_MISMATCH', () => {
+    it('payload changed only → PAYLOAD_HASH_MISMATCH', async () => {
       const chain = makeChain(5);
       chain[2] = { ...chain[2]!, payload: { text: 'diubah' } };
-      expect(verifyChain(chain)).toMatchObject({
+      expect(await verifyChain(chain)).toMatchObject({
         ok: false,
         code: 'PAYLOAD_HASH_MISMATCH',
         brokenAtSeq: 2,
       });
     });
 
-    it('payload and payload_hash changed → BROKEN_AT_SEQ at that entry', () => {
+    it('payload and payload_hash changed → BROKEN_AT_SEQ at that entry', async () => {
       const chain = makeChain(5);
       const payload = { text: 'diubah' };
       chain[2] = { ...chain[2]!, payload, payload_hash: computePayloadHash(payload) };
-      expect(verifyChain(chain)).toMatchObject({
+      expect(await verifyChain(chain)).toMatchObject({
         ok: false,
         code: 'BROKEN_AT_SEQ',
         brokenAtSeq: 2,
       });
     });
 
-    it('fully resealed entry → BROKEN_AT_SEQ at the next entry', () => {
+    it('fully resealed entry → BROKEN_AT_SEQ at the next entry', async () => {
       const chain = makeChain(5);
       const payload = { text: 'diubah' };
       chain[2] = reseal({ ...chain[2]!, payload, payload_hash: computePayloadHash(payload) });
-      expect(verifyChain(chain)).toMatchObject({
+      expect(await verifyChain(chain)).toMatchObject({
         ok: false,
         code: 'BROKEN_AT_SEQ',
         brokenAtSeq: 3,
       });
     });
 
-    it('created_at changed → BROKEN_AT_SEQ', () => {
+    it('created_at changed → BROKEN_AT_SEQ', async () => {
       const chain = makeChain(5);
       chain[2] = { ...chain[2]!, created_at: '2026-01-01T00:00:00.000Z' };
-      expect(verifyChain(chain)).toMatchObject({
+      expect(await verifyChain(chain)).toMatchObject({
         ok: false,
         code: 'BROKEN_AT_SEQ',
         brokenAtSeq: 2,
@@ -177,49 +181,49 @@ describe('verifyChain', () => {
     });
   });
 
-  it('entry deleted → SEQ_GAP', () => {
+  it('entry deleted → SEQ_GAP', async () => {
     const chain = makeChain(5);
     chain.splice(2, 1);
-    expect(verifyChain(chain)).toMatchObject({ ok: false, code: 'SEQ_GAP', brokenAtSeq: 2 });
+    expect(await verifyChain(chain)).toMatchObject({ ok: false, code: 'SEQ_GAP', brokenAtSeq: 2 });
   });
 
-  it('entry deleted and later entries renumbered → BROKEN_AT_SEQ', () => {
+  it('entry deleted and later entries renumbered → BROKEN_AT_SEQ', async () => {
     const chain = makeChain(5);
     chain.splice(2, 1);
     const renumbered = chain.map((e, i) => (i >= 2 ? reseal({ ...e, seq: i }) : e));
-    expect(verifyChain(renumbered)).toMatchObject({
+    expect(await verifyChain(renumbered)).toMatchObject({
       ok: false,
       code: 'BROKEN_AT_SEQ',
       brokenAtSeq: 2,
     });
   });
 
-  it('entry inserted with a duplicate seq → SEQ_GAP', () => {
+  it('entry inserted with a duplicate seq → SEQ_GAP', async () => {
     const chain = makeChain(5);
     const forged = buildEntry(input(1, { text: 'sisipan' }), chain[1]!);
     chain.splice(2, 0, forged);
-    expect(verifyChain(chain)).toMatchObject({ ok: false, code: 'SEQ_GAP', brokenAtSeq: 3 });
+    expect(await verifyChain(chain)).toMatchObject({ ok: false, code: 'SEQ_GAP', brokenAtSeq: 3 });
   });
 
-  it('entry inserted and later entries renumbered → BROKEN_AT_SEQ after the insertion', () => {
+  it('entry inserted and later entries renumbered → BROKEN_AT_SEQ after the insertion', async () => {
     const chain = makeChain(5);
     const forged = buildEntry(input(1, { text: 'sisipan' }), chain[1]!);
     const tail = chain.slice(2).map((e) => reseal({ ...e, seq: e.seq + 1 }));
     const tampered = [...chain.slice(0, 2), forged, ...tail];
-    expect(verifyChain(tampered)).toMatchObject({
+    expect(await verifyChain(tampered)).toMatchObject({
       ok: false,
       code: 'BROKEN_AT_SEQ',
       brokenAtSeq: 3,
     });
   });
 
-  it('order swapped → SEQ_GAP', () => {
+  it('order swapped → SEQ_GAP', async () => {
     const chain = makeChain(5);
     [chain[1], chain[2]] = [chain[2]!, chain[1]!];
-    expect(verifyChain(chain)).toMatchObject({ ok: false, code: 'SEQ_GAP', brokenAtSeq: 1 });
+    expect(await verifyChain(chain)).toMatchObject({ ok: false, code: 'SEQ_GAP', brokenAtSeq: 1 });
   });
 
-  it('order swapped and seq rewritten → BROKEN_AT_SEQ', () => {
+  it('order swapped and seq rewritten → BROKEN_AT_SEQ', async () => {
     const chain = makeChain(5);
     const swapped = [
       chain[0]!,
@@ -227,63 +231,63 @@ describe('verifyChain', () => {
       reseal({ ...chain[1]!, seq: 2 }),
       ...chain.slice(3),
     ];
-    expect(verifyChain(swapped)).toMatchObject({
+    expect(await verifyChain(swapped)).toMatchObject({
       ok: false,
       code: 'BROKEN_AT_SEQ',
       brokenAtSeq: 1,
     });
   });
 
-  it('duplicate seq → SEQ_GAP', () => {
+  it('duplicate seq → SEQ_GAP', async () => {
     const chain = makeChain(4);
     chain.splice(3, 0, chain[2]!);
-    expect(verifyChain(chain)).toMatchObject({ ok: false, code: 'SEQ_GAP', brokenAtSeq: 3 });
+    expect(await verifyChain(chain)).toMatchObject({ ok: false, code: 'SEQ_GAP', brokenAtSeq: 3 });
   });
 
-  it('wrong genesis → GENESIS_INVALID', () => {
+  it('wrong genesis → GENESIS_INVALID', async () => {
     const chain = makeChain(3);
     expect(
-      verifyChain([reseal({ ...chain[0]!, prev_hash: 'a'.repeat(64) }), ...chain.slice(1)]),
+      await verifyChain([reseal({ ...chain[0]!, prev_hash: 'a'.repeat(64) }), ...chain.slice(1)]),
     ).toMatchObject({
       ok: false,
       code: 'GENESIS_INVALID',
       brokenAtSeq: 0,
     });
-    expect(verifyChain(chain.slice(1))).toMatchObject({ ok: false, code: 'GENESIS_INVALID' });
+    expect(await verifyChain(chain.slice(1))).toMatchObject({ ok: false, code: 'GENESIS_INVALID' });
   });
 
-  it('entry from another ledger → LEDGER_MISMATCH', () => {
+  it('entry from another ledger → LEDGER_MISMATCH', async () => {
     const chain = makeChain(3);
     chain[1] = reseal({ ...chain[1]!, ledger_id: OTHER_LEDGER });
-    expect(verifyChain(chain)).toMatchObject({
+    expect(await verifyChain(chain)).toMatchObject({
       ok: false,
       code: 'LEDGER_MISMATCH',
       brokenAtSeq: 1,
     });
   });
 
-  it('timestamps going backwards → TIME_REGRESSION', () => {
+  it('timestamps going backwards → TIME_REGRESSION', async () => {
     const chain = makeChain(3);
     const back = reseal({
       ...chain[2]!,
       created_at: chain[0]!.created_at.replace('08:00:00', '07:00:00'),
     });
-    expect(verifyChain([chain[0]!, chain[1]!, back])).toMatchObject({
+    expect(await verifyChain([chain[0]!, chain[1]!, back])).toMatchObject({
       ok: false,
       code: 'TIME_REGRESSION',
       brokenAtSeq: 2,
     });
   });
 
-  it('malformed input → PACK_MALFORMED', () => {
+  it('malformed input → PACK_MALFORMED', async () => {
     const chain = makeChain(2);
     expect(
-      verifyChain([{ ...chain[0]!, entry_hash: chain[0]!.entry_hash.toUpperCase() }]),
+      await verifyChain([{ ...chain[0]!, entry_hash: chain[0]!.entry_hash.toUpperCase() }]),
     ).toMatchObject({
       code: 'PACK_MALFORMED',
     });
-    expect(verifyChain([null as unknown as Entry])).toMatchObject({ code: 'PACK_MALFORMED' });
-    expect(verifyChain([{ ...chain[0]!, payload: { n: 1.5 } }])).toMatchObject({
+    expect(await verifyChain([null as unknown as Entry])).toMatchObject({ code: 'PACK_MALFORMED' });
+    expect(await verifyChain([{ ...chain[0]!, payload: { n: 1.5 } }])).toMatchObject({
       code: 'PACK_MALFORMED',
     });
   });

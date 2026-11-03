@@ -1,7 +1,8 @@
-// Copyright (c) 2026 Vassel Goleyu. All rights reserved.
-import { createHash } from 'node:crypto';
+// Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
 import {
   anchorData,
+  b64urlToBytes,
+  sha256Hex,
   verifyAttachments,
   verifyPack,
   type EvidencePack,
@@ -10,13 +11,6 @@ import {
 import { unzipSync } from 'fflate';
 import type * as pkijs from 'pkijs';
 import { TokenError, verifyTimestampToken } from './timestamp.js';
-
-/** Strict base64url (no padding, canonical re-encoding), or null. */
-const decodeB64url = (value: string): Uint8Array | null => {
-  if (!/^[A-Za-z0-9_-]+$/.test(value)) return null;
-  const bytes = Buffer.from(value, 'base64url');
-  return bytes.toString('base64url') === value ? new Uint8Array(bytes) : null;
-};
 
 export interface VerifyEvidenceOptions {
   /** TSA root/intermediate certificates to build a path to. Without them the TSA chain is not checked. */
@@ -35,7 +29,7 @@ export const verifyEvidencePack = async (
 ): Promise<PackVerification> => {
   const result = await verifyPack(input, {
     checkAnchorToken: async (anchor, headEntry) => {
-      const der = decodeB64url(anchor.tst);
+      const der = b64urlToBytes(anchor.tst);
       if (!der)
         return { ok: false, reason: 'TOKEN_MALFORMED', detail: 'token is not canonical base64url' };
       try {
@@ -61,22 +55,6 @@ export const verifyEvidencePack = async (
   return result;
 };
 
-/** One-line verdict in simple Indonesian, as shown to non-technical readers (SPEC §7). */
-export const headline = (r: PackVerification): string => {
-  const errors = r.findings.filter((f) => f.severity === 'error');
-  if (!errors.length)
-    return r.summary.from_genesis ? 'Rantai utuh' : 'Rantai utuh pada rentang yang diekspor';
-  // A broken chain is the most useful thing to say, even when the pack checksum also differs.
-  const broken = errors.find(
-    (f) => f.code === 'BROKEN_AT_SEQ' || f.code === 'SEQ_GAP' || f.code === 'PAYLOAD_HASH_MISMATCH',
-  );
-  if (broken) return `Terputus di entri ${broken.seq ?? '?'}`;
-  const error = errors[0]!;
-  if (error.code === 'PACK_HASH_MISMATCH')
-    return 'Isi paket berbeda dari sidik jarinya (paket diubah)';
-  return `Paket tidak lolos pemeriksaan (${error.code})`;
-};
-
 const MAX_ZIP_BYTES = 256 * 1024 * 1024;
 const MAX_ZIP_FILES = 2_000;
 
@@ -90,7 +68,7 @@ export const loadPack = (bytes: Uint8Array): LoadedPack => {
   const isZip = bytes[0] === 0x50 && bytes[1] === 0x4b;
   if (!isZip) {
     try {
-      return { pack: JSON.parse(Buffer.from(bytes).toString('utf8')), files: new Map() };
+      return { pack: JSON.parse(new TextDecoder().decode(bytes)), files: new Map() };
     } catch {
       throw new Error('file is not valid JSON');
     }
@@ -109,11 +87,10 @@ export const loadPack = (bytes: Uint8Array): LoadedPack => {
   if (!packBytes) throw new Error('zip has no pack.json');
   const files = new Map<string, Uint8Array>();
   for (const [name, data] of Object.entries(entries)) {
-    if (name.startsWith('files/') && !name.endsWith('/'))
-      files.set(createHash('sha256').update(data).digest('hex'), data);
+    if (name.startsWith('files/') && !name.endsWith('/')) files.set(sha256Hex(data), data);
   }
   try {
-    return { pack: JSON.parse(Buffer.from(packBytes).toString('utf8')), files };
+    return { pack: JSON.parse(new TextDecoder().decode(packBytes)), files };
   } catch {
     throw new Error('pack.json is not valid JSON');
   }

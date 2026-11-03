@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Vassel Goleyu. All rights reserved.
+// Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
 import { randomUUID } from 'node:crypto';
 import { verifyChain } from '@paper-trail/chain';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -45,7 +45,7 @@ describe('appendEntry', () => {
     const chain = await getChain(db, ledgerId);
     expect(chain.map((e) => e.seq)).toEqual([0, 1, 2, 3, 4]);
     // Read back from Postgres (jsonb, timestamptz) and verified with the same rules as an export.
-    expect(verifyChain(chain)).toMatchObject({ ok: true, code: 'CHAIN_OK', length: 5 });
+    expect(await verifyChain(chain)).toMatchObject({ ok: true, code: 'CHAIN_OK', length: 5 });
 
     const ledger = await db.ledger.findUniqueOrThrow({ where: { id: ledgerId } });
     expect(ledger.headSeq).toBe(4);
@@ -64,7 +64,7 @@ describe('appendEntry', () => {
     const chain = await getChain(db, ledgerId);
     expect(chain).toHaveLength(50);
     expect(new Set(chain.map((e) => e.prev_hash)).size).toBe(50);
-    expect(verifyChain(chain)).toMatchObject({ ok: true, length: 50 });
+    expect(await verifyChain(chain)).toMatchObject({ ok: true, length: 50 });
   });
 
   it('never uses a client timestamp and clamps a backwards server clock to the head time', async () => {
@@ -82,7 +82,7 @@ describe('appendEntry', () => {
       () => new Date('2026-11-03T09:59:59.000Z'),
     );
     expect(second.created_at).toBe(first.created_at);
-    expect(verifyChain(await getChain(db, ledgerId)).ok).toBe(true);
+    expect((await verifyChain(await getChain(db, ledgerId))).ok).toBe(true);
   });
 
   it('rejects an unknown ledger', async () => {
@@ -206,6 +206,6 @@ describe('database guards (direct SQL, bypassing the application)', () => {
   });
 
   it('chain still verifies after all rejected tampering', async () => {
-    expect(verifyChain(await getChain(db, ledgerId))).toMatchObject({ ok: true, length: 3 });
+    expect(await verifyChain(await getChain(db, ledgerId))).toMatchObject({ ok: true, length: 3 });
   });
 });

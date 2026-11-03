@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Vassel Goleyu. All rights reserved.
+// Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
 import { createHash } from 'node:crypto';
 import {
   anchorData,
@@ -12,7 +12,8 @@ import {
 } from '@paper-trail/chain';
 import { zipSync } from 'fflate';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { headline, loadPack, verifyEvidencePack } from './pack.js';
+import { loadPack, verifyEvidencePack } from './pack.js';
+import { headline } from './report.js';
 import { createMockTsa, fetchMockToken, type MockTsa } from './testing/mock-tsa.js';
 import { extractTokenCertificates, parsePemCertificates } from './timestamp.js';
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Vassel Goleyu. All rights reserved.
+// Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
 import { generateKeyPairSync, sign } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { buildEntry, computeEntryHash, computePayloadHash } from './entry.js';
@@ -89,8 +89,8 @@ const forge = (chain: Entry[], payload: Record<string, unknown>, authorRef?: str
 describe.each(['Ed25519', 'ES256'] as const)('verifyWitnessSignature (%s)', (alg) => {
   const target = { seq: 1, entry_hash: 'a'.repeat(64) };
 
-  it('accepts a correctly signed payload', () => {
-    expect(verifyWitnessSignature(LEDGER, signedPayload(alg, target))).toEqual({ ok: true });
+  it('accepts a correctly signed payload', async () => {
+    expect(await verifyWitnessSignature(LEDGER, signedPayload(alg, target))).toEqual({ ok: true });
   });
 
   it.each([
@@ -99,47 +99,59 @@ describe.each(['Ed25519', 'ES256'] as const)('verifyWitnessSignature (%s)', (alg
     ['target_seq', 2],
     ['invite_id', '00000000-0000-4000-8000-000000000000'],
     ['signed_client_time', '2026-11-03T09:00:00.000Z'],
-  ] as const)('rejects the signature when %s is modified after signing', (field, value) => {
+  ] as const)('rejects the signature when %s is modified after signing', async (field, value) => {
     const p = { ...signedPayload(alg, target), [field]: value };
-    expect(verifyWitnessSignature(LEDGER, p)).toMatchObject({
+    expect(await verifyWitnessSignature(LEDGER, p)).toMatchObject({
       ok: false,
       reason: 'signature does not verify',
     });
   });
 
-  it('rejects the signature for another ledger', () => {
+  it('rejects the signature for another ledger', async () => {
     expect(
-      verifyWitnessSignature('0b5e9a7c-1111-4222-8333-944455556666', signedPayload(alg, target)).ok,
+      (
+        await verifyWitnessSignature(
+          '0b5e9a7c-1111-4222-8333-944455556666',
+          signedPayload(alg, target),
+        )
+      ).ok,
     ).toBe(false);
   });
 
-  it("rejects someone else's public key and a corrupted signature", () => {
+  it("rejects someone else's public key and a corrupted signature", async () => {
     const p = signedPayload(alg, target);
     const other = signedPayload(alg, target);
-    expect(verifyWitnessSignature(LEDGER, { ...p, witness_pub: other.witness_pub }).ok).toBe(false);
+    expect(
+      (await verifyWitnessSignature(LEDGER, { ...p, witness_pub: other.witness_pub })).ok,
+    ).toBe(false);
     const sig = Buffer.from(p.signature, 'base64url');
     sig[10]! ^= 0xff;
-    expect(verifyWitnessSignature(LEDGER, { ...p, signature: sig.toString('base64url') }).ok).toBe(
-      false,
-    );
+    expect(
+      (await verifyWitnessSignature(LEDGER, { ...p, signature: sig.toString('base64url') })).ok,
+    ).toBe(false);
   });
 
-  it('rejects malformed encodings, wrong key sizes and extra fields', () => {
+  it('rejects malformed encodings, wrong key sizes and extra fields', async () => {
     const p = signedPayload(alg, target);
-    expect(verifyWitnessSignature(LEDGER, { ...p, signature: `${p.signature}=` }).ok).toBe(false);
-    expect(verifyWitnessSignature(LEDGER, { ...p, signature: p.signature.slice(4) }).ok).toBe(
+    expect((await verifyWitnessSignature(LEDGER, { ...p, signature: `${p.signature}=` })).ok).toBe(
       false,
     );
-    expect(verifyWitnessSignature(LEDGER, { ...p, witness_pub: p.witness_pub.slice(4) }).ok).toBe(
-      false,
-    );
-    expect(verifyWitnessSignature(LEDGER, { ...p, extra: 'tidak ditandatangani' })).toMatchObject({
+    expect(
+      (await verifyWitnessSignature(LEDGER, { ...p, signature: p.signature.slice(4) })).ok,
+    ).toBe(false);
+    expect(
+      (await verifyWitnessSignature(LEDGER, { ...p, witness_pub: p.witness_pub.slice(4) })).ok,
+    ).toBe(false);
+    expect(
+      await verifyWitnessSignature(LEDGER, { ...p, extra: 'tidak ditandatangani' }),
+    ).toMatchObject({
       ok: false,
     });
     expect(
-      verifyWitnessSignature(LEDGER, { ...p, alg: alg === 'Ed25519' ? 'ES256' : 'Ed25519' }).ok,
+      (await verifyWitnessSignature(LEDGER, { ...p, alg: alg === 'Ed25519' ? 'ES256' : 'Ed25519' }))
+        .ok,
     ).toBe(false);
-    expect(verifyWitnessSignature(LEDGER, null).ok).toBe(false);
+    expect((await verifyWitnessSignature(LEDGER, null)).ok).toBe(false);
   });
 });
 
@@ -159,35 +171,35 @@ describe('witness name rules', () => {
 });
 
 describe.each(['Ed25519', 'ES256'] as const)('verifyChain with a %s cosign', (alg) => {
-  it('stays valid after a co-sign', () => {
-    expect(verifyChain(chainWithCosign(alg))).toMatchObject({ ok: true, length: 3 });
+  it('stays valid after a co-sign', async () => {
+    expect(await verifyChain(chainWithCosign(alg))).toMatchObject({ ok: true, length: 3 });
   });
 
-  it('accepts an undisclosed cosign payload (not checkable, chain intact)', () => {
+  it('accepts an undisclosed cosign payload (not checkable, chain intact)', async () => {
     const chain = chainWithCosign(alg);
     const envelope: Entry = { ...chain[2]! };
     delete envelope.payload;
-    expect(verifyChain([chain[0]!, chain[1]!, envelope]).ok).toBe(true);
+    expect((await verifyChain([chain[0]!, chain[1]!, envelope])).ok).toBe(true);
   });
 
-  it('rejects a cosign whose signature was made over a different name (resealed by a forger)', () => {
+  it('rejects a cosign whose signature was made over a different name (resealed by a forger)', async () => {
     const chain = chainWithCosign(alg);
     const tampered = forge(chain, { ...chain[2]!.payload!, witness_name: 'Saksi Palsu' });
-    expect(verifyChain(tampered)).toMatchObject({
+    expect(await verifyChain(tampered)).toMatchObject({
       ok: false,
       code: 'WITNESS_SIG_INVALID',
       brokenAtSeq: 2,
     });
   });
 
-  it('rejects a cosign whose author_ref is not the witness key', () => {
+  it('rejects a cosign whose author_ref is not the witness key', async () => {
     const chain = chainWithCosign(alg);
-    expect(verifyChain(forge(chain, chain[2]!.payload!, 'witness:abcdef'))).toMatchObject({
+    expect(await verifyChain(forge(chain, chain[2]!.payload!, 'witness:abcdef'))).toMatchObject({
       code: 'WITNESS_SIG_INVALID',
     });
   });
 
-  it('rejects a cosign pointing at the wrong entry', () => {
+  it('rejects a cosign pointing at the wrong entry', async () => {
     const [a, b] = chainWithCosign(alg);
     const payload = signedPayload(alg, { seq: 1, entry_hash: a!.entry_hash });
     const cosign = buildEntry(
@@ -200,14 +212,14 @@ describe.each(['Ed25519', 'ES256'] as const)('verifyChain with a %s cosign', (al
       },
       b!,
     );
-    expect(verifyChain([a!, b!, cosign])).toMatchObject({
+    expect(await verifyChain([a!, b!, cosign])).toMatchObject({
       ok: false,
       code: 'WITNESS_TARGET_MISMATCH',
       brokenAtSeq: 2,
     });
   });
 
-  it('rejects a cosign that targets itself or a later entry', () => {
+  it('rejects a cosign that targets itself or a later entry', async () => {
     const [a, b] = chainWithCosign(alg);
     const payload = signedPayload(alg, { seq: 2, entry_hash: 'c'.repeat(64) });
     const cosign = buildEntry(
@@ -220,6 +232,6 @@ describe.each(['Ed25519', 'ES256'] as const)('verifyChain with a %s cosign', (al
       },
       b!,
     );
-    expect(verifyChain([a!, b!, cosign])).toMatchObject({ code: 'WITNESS_TARGET_MISMATCH' });
+    expect(await verifyChain([a!, b!, cosign])).toMatchObject({ code: 'WITNESS_TARGET_MISMATCH' });
   });
 });

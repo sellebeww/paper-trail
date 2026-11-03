@@ -1,17 +1,14 @@
-// Copyright (c) 2026 Vassel Goleyu. All rights reserved.
+// Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
 // Offline verification of an RFC 3161 TimeStampToken. Shared by the worker (when it receives a token) and
 // by the pack verifier (when someone checks an exported anchor). pkijs/asn1js are pure JS: no shelling out
 // to `openssl ts`, so there is no argument-injection or temp-file surface and no dependency on the host's OpenSSL.
-import { createHash, webcrypto } from 'node:crypto';
+// Only WebCrypto is used, so the same code runs in Node and in the browser (/verify).
 import * as asn1js from 'asn1js';
 import * as pkijs from 'pkijs';
 
 pkijs.setEngine(
-  'node',
-  new pkijs.CryptoEngine({
-    name: 'node',
-    crypto: webcrypto as unknown as Crypto,
-  }) as unknown as pkijs.ICryptoEngine,
+  'webcrypto',
+  new pkijs.CryptoEngine({ name: 'webcrypto', crypto }) as unknown as pkijs.ICryptoEngine,
 );
 
 export const OID = {
@@ -54,12 +51,16 @@ export interface TokenResult {
   certificates: Uint8Array[];
 }
 
-const bytesEqual = (a: Uint8Array, b: Uint8Array) => Buffer.from(a).equals(Buffer.from(b));
+const bytesEqual = (a: Uint8Array, b: Uint8Array) =>
+  a.length === b.length && a.every((x, i) => x === b[i]);
+const toHex = (b: Uint8Array) => Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('');
+const digest = async (algorithm: string, data: ArrayBuffer | Uint8Array<ArrayBuffer>) =>
+  new Uint8Array(await crypto.subtle.digest(algorithm, data));
 
 const ESS_HASHES: Record<string, string> = {
-  [OID.sha256]: 'sha256',
-  '2.16.840.1.101.3.4.2.2': 'sha384',
-  '2.16.840.1.101.3.4.2.3': 'sha512',
+  [OID.sha256]: 'SHA-256',
+  '2.16.840.1.101.3.4.2.2': 'SHA-384',
+  '2.16.840.1.101.3.4.2.3': 'SHA-512',
 };
 
 /**
@@ -67,7 +68,7 @@ const ESS_HASHES: Record<string, string> = {
  * RFC 5035 v2) naming the TSA certificate. Without this check a different certificate with the same key
  * could be substituted. The hash of the first ESSCertID must equal the hash of the signer certificate.
  */
-const checkEssSigningCertificate = (
+const checkEssSigningCertificate = async (
   signerInfo: pkijs.SignerInfo,
   signerCert: pkijs.Certificate,
 ) => {
@@ -82,7 +83,7 @@ const checkEssSigningCertificate = (
   try {
     const certs = (attr.values[0] as asn1js.Sequence).valueBlock.value[0] as asn1js.Sequence;
     const first = (certs.valueBlock.value[0] as asn1js.Sequence).valueBlock.value;
-    let algorithm = v2 ? 'sha256' : 'sha1'; // ESSCertIDv2 defaults to SHA-256; ESSCertID is always SHA-1
+    let algorithm = v2 ? 'SHA-256' : 'SHA-1'; // ESSCertIDv2 defaults to SHA-256; ESSCertID is always SHA-1
     let i = 0;
     if (v2 && first[0] instanceof asn1js.Sequence) {
       const oid = (first[0].valueBlock.value[0] as asn1js.ObjectIdentifier).valueBlock.toString();
@@ -91,11 +92,9 @@ const checkEssSigningCertificate = (
       algorithm = named;
       i = 1;
     }
-    const expected = Buffer.from((first[i] as asn1js.OctetString).valueBlock.valueHexView);
-    const actual = createHash(algorithm)
-      .update(Buffer.from(signerCert.toSchema().toBER(false)))
-      .digest();
-    if (!expected.equals(actual)) throw new Error('hash mismatch');
+    const expected = (first[i] as asn1js.OctetString).valueBlock.valueHexView;
+    const actual = await digest(algorithm, signerCert.toSchema().toBER(false));
+    if (!bytesEqual(expected, actual)) throw new Error('hash mismatch');
   } catch (err) {
     throw new TokenError(
       `ESS signing-certificate does not identify the TSA certificate (${(err as Error).message})`,
@@ -121,7 +120,7 @@ export const verifyTimestampToken = async (
 ): Promise<TokenResult> => {
   let content: pkijs.ContentInfo;
   try {
-    content = pkijs.ContentInfo.fromBER(der);
+    content = pkijs.ContentInfo.fromBER(Uint8Array.from(der));
   } catch {
     throw new TokenError('token is not a DER CMS ContentInfo', 'TOKEN_MALFORMED');
   }
@@ -140,10 +139,10 @@ export const verifyTimestampToken = async (
     throw new TokenError('token does not carry a parsable TSTInfo', 'TOKEN_MALFORMED');
   }
 
-  const digest = createHash('sha256').update(data).digest();
+  const imprint = await digest('SHA-256', Uint8Array.from(data));
   if (tst.messageImprint.hashAlgorithm.algorithmId !== OID.sha256)
     throw new TokenError('messageImprint is not SHA-256', 'IMPRINT_MISMATCH');
-  if (!bytesEqual(tst.messageImprint.hashedMessage.valueBlock.valueHexView, digest)) {
+  if (!bytesEqual(tst.messageImprint.hashedMessage.valueBlock.valueHexView, imprint)) {
     throw new TokenError('messageImprint does not match the requested digest', 'IMPRINT_MISMATCH');
   }
   const genTime = tst.genTime;
@@ -178,7 +177,7 @@ export const verifyTimestampToken = async (
       'SIGNATURE_INVALID',
     );
 
-  checkEssSigningCertificate(signed.signerInfos[0]!, signerCert);
+  await checkEssSigningCertificate(signed.signerInfos[0]!, signerCert);
   if (genTime < signerCert.notBefore.value || genTime > signerCert.notAfter.value) {
     throw new TokenError('TSA certificate was not valid at genTime', 'CERT_UNTRUSTED');
   }
@@ -194,7 +193,7 @@ export const verifyTimestampToken = async (
   return {
     genTime,
     accuracyMs: accuracyMs(tst.accuracy),
-    serialNumber: Buffer.from(tst.serialNumber.valueBlock.valueHexView).toString('hex'),
+    serialNumber: toHex(tst.serialNumber.valueBlock.valueHexView),
     ...(tst.nonce ? { nonce: new Uint8Array(tst.nonce.valueBlock.valueHexView) } : {}),
     chainVerified: trustedCerts.length > 0,
     certificates: certificatesOf(signed),
@@ -209,7 +208,7 @@ const certificatesOf = (signed: pkijs.SignedData): Uint8Array[] =>
 /** The certificates embedded in a token (DER each). Returns [] for anything that is not a token. */
 export const extractTokenCertificates = (der: Uint8Array): Uint8Array[] => {
   try {
-    const content = pkijs.ContentInfo.fromBER(der);
+    const content = pkijs.ContentInfo.fromBER(Uint8Array.from(der));
     return certificatesOf(new pkijs.SignedData({ schema: content.content }));
   } catch {
     return [];
@@ -221,12 +220,15 @@ export const parsePemCertificates = (pem: string): pkijs.Certificate[] => {
   const blocks = pem.match(/-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----/g) ?? [];
   if (blocks.length === 0) throw new Error('no certificates found in the PEM data');
   return blocks.map((b) =>
-    pkijs.Certificate.fromBER(Buffer.from(b.replace(/-----[A-Z ]+-----|\s/g, ''), 'base64')),
+    pkijs.Certificate.fromBER(
+      Uint8Array.from(atob(b.replace(/-----[A-Z ]+-----|\s/g, '')), (c) => c.charCodeAt(0)),
+    ),
   );
 };
 
 export const toPem = (cert: pkijs.Certificate) =>
-  `-----BEGIN CERTIFICATE-----\n${Buffer.from(cert.toSchema().toBER(false))
-    .toString('base64')
+  `-----BEGIN CERTIFICATE-----\n${btoa(
+    String.fromCharCode(...new Uint8Array(cert.toSchema().toBER(false))),
+  )
     .replace(/(.{64})/g, '$1\n')
     .trim()}\n-----END CERTIFICATE-----\n`;

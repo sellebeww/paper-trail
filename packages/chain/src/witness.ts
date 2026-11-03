@@ -1,7 +1,6 @@
-// Copyright (c) 2026 Vassel Goleyu. All rights reserved.
-import { createPublicKey, verify, type KeyObject } from 'node:crypto';
+// Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
 import { HEX64, isTimestamp } from './entry.js';
-import { sha256Hex } from './hash.js';
+import { b64urlToBytes, sha256Hex } from './hash.js';
 import { canonicalize } from './jcs.js';
 import type { WitnessAlg, WitnessCosignPayload } from './types.js';
 import {
@@ -12,7 +11,6 @@ import {
 } from './witness-message.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-const B64URL = /^[A-Za-z0-9_-]+$/;
 const PAYLOAD_KEYS = [
   'alg',
   'invite_id',
@@ -26,10 +24,9 @@ const PAYLOAD_KEYS = [
 ].join(',');
 
 /** Strict base64url without padding, of exactly `length` bytes. */
-const decodeB64url = (value: unknown, length: number): Buffer | null => {
-  if (typeof value !== 'string' || !B64URL.test(value)) return null;
-  const bytes = Buffer.from(value, 'base64url');
-  return bytes.length === length && bytes.toString('base64url') === value ? bytes : null;
+const decodeB64url = (value: unknown, length: number): Uint8Array<ArrayBuffer> | null => {
+  const bytes = typeof value === 'string' ? b64urlToBytes(value) : null;
+  return bytes?.length === length ? bytes : null;
 };
 
 const isWitnessAlg = (value: unknown): value is WitnessAlg =>
@@ -63,21 +60,12 @@ const shapeProblem = (p: Record<string, unknown>): string | null => {
   return null;
 };
 
-const importKey = (alg: WitnessAlg, raw: Buffer): KeyObject =>
-  alg === 'Ed25519'
-    ? createPublicKey({
-        key: { kty: 'OKP', crv: 'Ed25519', x: raw.toString('base64url') },
-        format: 'jwk',
-      })
-    : createPublicKey({
-        key: {
-          kty: 'EC',
-          crv: 'P-256',
-          x: raw.subarray(1, 33).toString('base64url'),
-          y: raw.subarray(33, 65).toString('base64url'),
-        },
-        format: 'jwk',
-      });
+// WebCrypto, not node:crypto, so the browser verifier runs this exact code. Signatures are raw (IEEE P1363).
+const IMPORT = {
+  Ed25519: { name: 'Ed25519' },
+  ES256: { name: 'ECDSA', namedCurve: 'P-256' },
+} as const;
+const VERIFY = { Ed25519: { name: 'Ed25519' }, ES256: { name: 'ECDSA', hash: 'SHA-256' } } as const;
 
 export type WitnessCheck = { ok: true } | { ok: false; reason: string };
 
@@ -85,7 +73,10 @@ export type WitnessCheck = { ok: true } | { ok: false; reason: string };
  * Verifies a witness_cosign payload's signature over JCS(buildWitnessMessage(...)) (SPEC §4).
  * Input is untrusted: shape, encodings and key validity are checked before any crypto.
  */
-export const verifyWitnessSignature = (ledgerId: string, payload: unknown): WitnessCheck => {
+export const verifyWitnessSignature = async (
+  ledgerId: string,
+  payload: unknown,
+): Promise<WitnessCheck> => {
   if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) {
     return { ok: false, reason: 'payload must be an object' };
   }
@@ -100,22 +91,22 @@ export const verifyWitnessSignature = (ledgerId: string, payload: unknown): Witn
   const signature = decodeB64url(p['signature'], WITNESS_SIGNATURE_BYTES);
   if (!signature) return { ok: false, reason: 'signature must be 64 bytes, base64url' };
 
-  const message = Buffer.from(
+  const message = new TextEncoder().encode(
     canonicalize(buildWitnessMessage(ledgerId, p as unknown as WitnessCosignPayload)),
-    'utf8',
   );
+  let key: CryptoKey;
   try {
-    const key = importKey(alg, pub);
-    const valid =
-      alg === 'Ed25519'
-        ? verify(null, message, key, signature)
-        : verify('sha256', message, { key, dsaEncoding: 'ieee-p1363' }, signature);
-    return valid ? { ok: true } : { ok: false, reason: 'signature does not verify' };
+    key = await crypto.subtle.importKey('raw', pub, IMPORT[alg], false, ['verify']);
   } catch {
     return { ok: false, reason: 'witness_pub is not a valid public key' };
   }
+  const valid = await crypto.subtle.verify(VERIFY[alg], key, signature, message).catch(() => false);
+  return valid ? { ok: true } : { ok: false, reason: 'signature does not verify' };
 };
 
 /** `witness:` + SHA-256 of the raw public key bytes (SPEC §4.2). */
-export const witnessAuthorRef = (witnessPub: string): string =>
-  `witness:${sha256Hex(Buffer.from(witnessPub, 'base64url'))}`;
+export const witnessAuthorRef = (witnessPub: string): string => {
+  const raw = b64urlToBytes(witnessPub);
+  if (!raw) throw new Error('witness_pub is not base64url');
+  return `witness:${sha256Hex(raw)}`;
+};

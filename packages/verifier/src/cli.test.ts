@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Vassel Goleyu. All rights reserved.
+// Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
 import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -10,6 +10,13 @@ const examples = resolve(root, 'docs/examples');
 const tsx = resolve(root, 'node_modules/.bin/tsx');
 const cli = resolve(import.meta.dirname, 'cli.ts');
 const roots = join(examples, 'example-tsa-root.pem');
+const fixtures = resolve(import.meta.dirname, '../fixtures');
+const expected = JSON.parse(readFileSync(join(fixtures, 'expected.json'), 'utf8')) as {
+  file: string;
+  exit: number;
+  headline: string;
+  code?: string;
+}[];
 
 const run = (...args: string[]) => {
   const r = spawnSync(tsx, ['--conditions=source', cli, ...args], {
@@ -19,14 +26,14 @@ const run = (...args: string[]) => {
   return { code: r.status, out: r.stdout + r.stderr };
 };
 
-describe('papertrail-verify on the committed examples', () => {
+describe('paper-trail-verify on the committed examples', () => {
   it.each(['example-pack.json', 'example-pack.zip'])(
     '%s verifies against the example TSA root (exit 0)',
     (file) => {
       const r = run(join(examples, file), '--roots', roots);
       expect(r.code).toBe(0);
       expect(r.out).toContain('Rantai utuh');
-      expect(r.out).toContain('jangkar terverifikasi: 2');
+      expect(r.out).toContain('2 jangkar sah, mencakup sampai entri 5');
       expect(r.out).toContain('tidak menjamin penerimaan sebagai alat bukti');
     },
   );
@@ -60,9 +67,23 @@ describe('papertrail-verify on the committed examples', () => {
     expect(r.out).toContain('PACK_HASH_MISMATCH');
   });
 
-  it('reports usage and input errors with exit code 2', () => {
-    expect(run().code).toBe(2);
+  it('reports usage errors with 64 and unreadable packs with 2', () => {
+    expect(run().code).toBe(64);
+    expect(run(join(examples, 'example-pack.json'), '--roots', '/nonexistent.pem').code).toBe(64);
     expect(run('/nonexistent/pack.json').code).toBe(2);
+    expect(run(join(examples, 'README.md')).code).toBe(2);
+  });
+
+  it.each(expected)('fixture $file → exit $exit, "$headline"', ({ file, exit, headline, code }) => {
+    const r = run(join(fixtures, file), '--roots', roots);
+    expect(r.code).toBe(exit);
+    expect(r.out.split('\n')[0]).toBe(`${exit === 0 ? '✔' : '✘'} ${headline}`);
+    if (code) expect(r.out).toContain(code);
+    const json = JSON.parse(run(join(fixtures, file), '--roots', roots, '--json').out) as {
+      exitCode: number;
+      headline: string;
+    };
+    expect(json).toMatchObject({ exitCode: exit, headline });
   });
 
   it('the example PDF carries the pack hash of the example JSON', () => {

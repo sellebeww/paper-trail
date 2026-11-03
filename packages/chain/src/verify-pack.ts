@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Vassel Goleyu. All rights reserved.
+// Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
 import { canonicalEnvelope, GENESIS_PREV_HASH, HEX64, isTimestamp } from './entry.js';
 import { sha256Hex } from './hash.js';
 import { computePackHash, summarizeWitness } from './pack.js';
@@ -182,7 +182,7 @@ export const verifyPack = async (
   }
 
   // 4. Chain segment (includes payload hashes and witness signatures)
-  const result = verifyChain(chain, {
+  const result = await verifyChain(chain, {
     segment: { fromSeq: from, firstPrevHash: firstPrev as string },
   });
   if (!result.ok) {

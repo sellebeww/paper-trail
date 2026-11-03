@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Vassel Goleyu. All rights reserved.
+// Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
 import {
   computeEntryHash,
   computePayloadHash,
@@ -69,10 +69,10 @@ export interface ChainOptions {
  * later hash depends on it. `brokenAtSeq` is the entry's seq where it failed.
  * Input is treated as untrusted: shape is checked before anything is hashed.
  */
-export const verifyChain = (
+export const verifyChain = async (
   entries: readonly Entry[],
   options: ChainOptions = {},
-): ChainVerification => {
+): Promise<ChainVerification> => {
   const fromSeq = options.segment?.fromSeq ?? 0;
   const firstPrevHash = options.segment?.firstPrevHash ?? GENESIS_PREV_HASH;
   if (entries.length === 0)
@@ -131,7 +131,7 @@ export const verifyChain = (
     // SPEC §8 step 6. An undisclosed cosign payload cannot be checked; the chain still holds.
     if (entry.type === 'witness_cosign' && entry.payload !== undefined) {
       const p = entry.payload as Record<string, unknown>;
-      const check = verifyWitnessSignature(entry.ledger_id, p);
+      const check = await verifyWitnessSignature(entry.ledger_id, p);
       if (!check.ok) return fail('WITNESS_SIG_INVALID', seq, check.reason);
       if (entry.author_ref !== witnessAuthorRef(p['witness_pub'] as string)) {
         return fail('WITNESS_SIG_INVALID', seq, 'author_ref does not match the witness key');

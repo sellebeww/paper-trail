@@ -1,8 +1,18 @@
 #!/usr/bin/env node
-// Copyright (c) 2026 Vassel Goleyu. All rights reserved.
-// Offline verifier for Paper Trail evidence packs. Exit code: 0 = verdict OK, 1 = FAILED, 2 = usage/input error.
+// Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
+// Offline verifier for Paper Trail evidence packs. Exit codes: see EXIT in report.ts (0 = OK, 1 = chain broken,
+// 2 = invalid or unreadable pack, 3 = pack_hash mismatch, 4 = witness, 5 = anchor, 6 = attachment, 64 = usage).
 import { readFile } from 'node:fs/promises';
-import { headline, loadPack, parsePemCertificates, USAGE, verifyEvidencePack } from './index.js';
+import {
+  describeVerification,
+  DISCLAIMER,
+  EXIT,
+  loadPack,
+  parsePemCertificates,
+  USAGE,
+  verifyEvidencePack,
+  warningText,
+} from './index.js';
 
 const args = process.argv.slice(2);
 const flag = (name: string) => args.includes(name);
@@ -11,48 +21,53 @@ const option = (name: string) => {
   return i >= 0 ? args[i + 1] : undefined;
 };
 const file = args.find((a, i) => !a.startsWith('--') && args[i - 1] !== '--roots');
+const fail = (code: number, message: string): never => {
+  console.error(`Error: ${message}`);
+  process.exit(code);
+};
 
 if (!file || flag('--help')) {
   console.error(USAGE);
-  process.exit(2);
+  process.exit(EXIT.USAGE);
 }
 
-try {
-  const roots = option('--roots');
-  const trustedCerts = roots ? parsePemCertificates(await readFile(roots, 'utf8')) : [];
-  const { pack, files } = loadPack(await readFile(file));
-  const result = await verifyEvidencePack(pack, {
-    trustedCerts,
-    files: files.size ? files : undefined,
-  });
+const roots = option('--roots');
+const trustedCerts = roots
+  ? await readFile(roots, 'utf8')
+      .then(parsePemCertificates)
+      .catch((err: Error) => fail(EXIT.USAGE, `--roots: ${err.message}`))
+  : [];
 
-  if (flag('--json')) {
-    console.log(JSON.stringify({ headline: headline(result), ...result }, null, 2));
-  } else {
-    const s = result.summary;
-    console.log(`${result.verdict === 'OK' ? '✔' : '✘'} ${headline(result)}`);
-    if (s.from_seq !== null)
-      console.log(
-        `  Entri ${s.from_seq}–${s.to_seq} (${s.entries} entri), saksi terverifikasi: ${s.witnesses_verified}, jangkar terverifikasi: ${s.anchors_verified}`,
-      );
-    if (s.anchored_through_seq !== null)
-      console.log(`  Jangkar waktu eksternal mencakup sampai entri ${s.anchored_through_seq}`);
-    for (const f of result.findings.filter((x) => x.code !== 'CHAIN_OK')) {
-      const mark =
-        f.severity === 'error' ? 'GALAT' : f.severity === 'warning' ? 'PERHATIAN' : 'info';
-      console.log(
-        `  [${mark}] ${f.code}${f.seq !== undefined ? ` (entri ${f.seq})` : ''}${f.reason ? ` ${f.reason}` : ''}: ${f.detail}`,
-      );
-    }
-    console.log(
-      '\nPaper Trail membantu membuktikan bahwa catatan tidak diubah setelah dibuat dan kapan catatan itu ada.',
-    );
-    console.log(
-      'Ini bukan nasihat hukum dan tidak menjamin penerimaan sebagai alat bukti. Konsultasikan dengan pendamping hukum.',
-    );
+const loaded = await readFile(file)
+  .then(loadPack)
+  .catch((err: Error) => fail(EXIT.FORMAT_INVALID, `paket tidak dapat dibaca: ${err.message}`));
+const result = await verifyEvidencePack(loaded.pack, {
+  trustedCerts,
+  files: loaded.files.size ? loaded.files : undefined,
+});
+const report = describeVerification(result, { attachmentsChecked: loaded.files.size > 0 });
+const at = (seq?: number) => (seq !== undefined ? ` (entri ${seq})` : '');
+
+if (flag('--json')) {
+  console.log(
+    JSON.stringify({ ...report, findings: result.findings, summary: result.summary }, null, 2),
+  );
+} else {
+  const MARK = { pass: '✔', fail: '✘', warn: '!', skip: '–' } as const;
+  console.log(`${report.status === 'OK' ? '✔' : '✘'} ${report.headline}`);
+  if (report.brokenAt)
+    console.log(`  Terputus di entri ${report.brokenAt.seq}: ${report.brokenAt.detail}`);
+  console.log('\nPemeriksaan:');
+  for (const c of report.checks) {
+    console.log(`  ${MARK[c.status]} ${c.label}: ${c.note}`);
+    for (const f of c.findings.filter((x) => x.severity === 'error'))
+      console.log(`      ${f.code}${at(f.seq)}${f.reason ? ` ${f.reason}` : ''}: ${f.detail}`);
   }
-  process.exit(result.verdict === 'OK' ? 0 : 1);
-} catch (err) {
-  console.error(`Error: ${(err as Error).message}`);
-  process.exit(2);
+  if (report.warnings.length) {
+    console.log('\nPeringatan (tidak menggagalkan, tetapi perlu dibaca):');
+    for (const f of report.warnings)
+      console.log(`  [PERHATIAN] ${warningText(f)}\n      ${f.code}${at(f.seq)}: ${f.detail}`);
+  }
+  console.log(`\n${DISCLAIMER}`);
 }
+process.exit(report.exitCode);

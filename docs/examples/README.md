@@ -17,10 +17,15 @@ Verify a pack offline, without an account or network:
 
 ```bash
 pnpm build
-node packages/verifier/dist/cli.js docs/examples/example-pack.json --roots docs/examples/example-tsa-root.pem
-# ✔ Rantai utuh · saksi terverifikasi: 1, jangkar terverifikasi: 2
+npx paper-trail-verify docs/examples/example-pack.json --roots docs/examples/example-tsa-root.pem
+# ✔ Rantai utuh
+# ...
+#   ✔ Jangkar waktu (RFC 3161): 2 jangkar sah, mencakup sampai entri 5
 ```
 
 Change one character of a pack (for instance `21.00` to `22.00` in the first note) and run it again: the result becomes
-"Terputus di entri 0" and the exit code is 1. Without `--roots` the pack still verifies but the verifier warns that the
+"Terputus di entri 0" and the exit code is 1 (all exit codes: [../VERIFY.md](../VERIFY.md#our-tools-optional)). The
+same packs can be checked in the browser at `/verify`, or without any Paper Trail code by following
+[../VERIFY.md](../VERIFY.md). Tampered packs for testing a verifier are in
+[`packages/verifier/fixtures/`](../../packages/verifier/fixtures). Without `--roots` the pack still verifies but the verifier warns that the
 TSA certificate chain was not checked.
