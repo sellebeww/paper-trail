@@ -6,3 +6,4 @@ pnpm-lock.yaml
 apps/api/src/generated
 apps/api/prisma/migrations/**/*.sql
 docs/examples/*.json
+packages/verifier/fixtures/*.json
