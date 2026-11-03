@@ -14,13 +14,15 @@
     "test:int": "vitest run -c vitest.int.config.ts",
     "postinstall": "prisma generate",
     "db:migrate": "prisma migrate deploy",
-    "db:generate": "prisma generate"
+    "db:generate": "prisma generate",
+    "example:pack": "tsx --conditions=source src/dev/make-example.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1161.0",
     "@aws-sdk/lib-storage": "^3.1161.0",
     "@node-rs/argon2": "^2.2.2",
     "@paper-trail/chain": "workspace:*",
+    "@paper-trail/verifier": "workspace:*",
     "@prisma/adapter-pg": "7.10.1",
     "@prisma/client": "7.10.1",
     "amqplib": "^2.2.1",
@@ -29,9 +31,12 @@
     "cors": "^2.8.6",
     "express": "^5.3.0",
     "express-rate-limit": "^8.7.2",
+    "fflate": "^0.8.3",
     "file-type": "^22.3.0",
     "helmet": "^8.3.0",
+    "pdfkit": "^0.20.2",
     "pg": "^8.23.1",
+    "qrcode": "^1.5.4",
     "zod": "^4.6.7"
   },
   "devDependencies": {
@@ -40,7 +45,10 @@
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
+    "@types/pdfkit": "^0.17.7",
     "@types/pg": "^8.23.1",
-    "prisma": "7.10.1"
+    "@types/qrcode": "^1.5.6",
+    "prisma": "7.10.1",
+    "unpdf": "^2.1.0"
   }
 }

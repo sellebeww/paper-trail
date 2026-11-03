@@ -79,7 +79,7 @@ const headJson = (
 });
 
 /** The caller's ledger, or 404. A foreign ledger is indistinguishable from a missing one. */
-const ownLedger = async (db: Db, res: Response, id: string): Promise<Ledger> => {
+export const ownLedger = async (db: Db, res: Response, id: string): Promise<Ledger> => {
   const auth = requireAuth(res);
   const ledger = await db.ledger.findFirst({ where: { id, ownerId: auth.user.id } });
   if (!ledger) throw notFound('Ledger');

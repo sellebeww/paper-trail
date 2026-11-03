@@ -33,6 +33,14 @@ const schema = z.object({
   /** Public witness endpoints: requests per IP per 15 minutes, and per token per 15 minutes. */
   WITNESS_RATE_LIMIT_IP: z.coerce.number().int().min(1).default(60),
   WITNESS_RATE_LIMIT_TOKEN: z.coerce.number().int().min(1).default(20),
+  /** Evidence pack / PDF exports per IP per 10 minutes (they read the whole ledger). */
+  EXPORT_RATE_LIMIT: z.coerce.number().int().min(1).default(20),
+  /** Largest total size of attachments bundled into one zip. */
+  EXPORT_MAX_FILES_BYTES: z.coerce
+    .number()
+    .int()
+    .min(1024)
+    .default(100 * 1024 * 1024),
   /** Requests per IP per minute on everything else. */
   API_RATE_LIMIT: z.coerce.number().int().min(1).default(300),
 });

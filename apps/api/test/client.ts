@@ -21,6 +21,7 @@ export const startTestApp = async (overrides: Record<string, string> = {}) => {
     S3_SECRET_KEY: 'unused',
     API_RATE_LIMIT: '100000',
     AUTH_RATE_LIMIT: '100000',
+    EXPORT_RATE_LIMIT: '100000',
     UPLOAD_MAX_BYTES: String(2 * 1024 * 1024),
     ...overrides,
   });
