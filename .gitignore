@@ -10,3 +10,4 @@ coverage
 apps/api/src/generated
 .mock-tsa-ca.pem
 demo
+.data

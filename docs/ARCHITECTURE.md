@@ -15,7 +15,7 @@ flowchart LR
   WORKER["apps/worker<br/>anchoring jobs"]
   PG[("PostgreSQL<br/>append-only entries")]
   MQ{{"RabbitMQ"}}
-  S3[("MinIO<br/>S3-compatible files")]
+  S3[("File store<br/>local disk or S3")]
   TSA["External TSA<br/>(RFC 3161)"]
   CHAIN["packages/chain<br/>pure hash-chain core"]
   CLI["packages/verifier<br/>CLI + library"]
@@ -41,7 +41,7 @@ flowchart LR
 | `apps/web`          | Owner UI, witness page, public verification page. Indonesian UI.                                             |
 | PostgreSQL          | Source of truth. `UPDATE`/`DELETE` on entries blocked by triggers; `UNIQUE(ledger_id, seq)`.                 |
 | RabbitMQ            | Decouples slow or flaky external calls from requests. Retry, backoff, dead-letter queue.                     |
-| MinIO / S3          | File bytes, addressed by `content_sha256`. Not part of the chain.                                            |
+| File store          | File bytes (local disk by default, or S3), addressed by `content_sha256`. Not part of the chain.             |
 
 ## 2. Flow: add an entry
 
@@ -53,7 +53,7 @@ sequenceDiagram
   actor O as Owner
   participant W as apps/web
   participant A as apps/api
-  participant S as MinIO
+  participant S as File store
   participant D as PostgreSQL
 
   O->>W: Write note / choose file
@@ -191,7 +191,7 @@ sequenceDiagram
   actor O as Owner
   participant A as apps/api
   participant D as PostgreSQL
-  participant S as MinIO / S3
+  participant S as File store
   actor V as Verifier (legal aide, union)
   participant P as paper-trail-verify (packages/verifier)
 
@@ -234,7 +234,7 @@ flowchart LR
   U["Browser"] -->|HTTPS, TLS terminated in front| WEB["web: nginx<br/>static app + /api/ proxy"]
   WEB -->|/api/| API["api"]
   API --> PG[("PostgreSQL")]
-  API --> S3[("S3 / MinIO")]
+  API --> S3[("File store")]
   WORKER["worker"] --> PG
   WORKER --> MQ{{"RabbitMQ"}}
   WORKER --> TSA["TSA"]

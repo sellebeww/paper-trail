@@ -38,6 +38,8 @@ First public pre-alpha. The format is stable (SPEC 1.0); the software is not pro
 
 ### Changed
 
+- Uploaded files are stored on local disk by default (`STORAGE_DIR`); S3 is optional. Expired sessions are purged hourly.
+  The api image is about 500 MB (the Prisma CLI is removed from it).
 - Licensed under **Apache-2.0** (code and specification); previously an "all rights reserved" placeholder.
 
 ### Security
@@ -69,17 +71,13 @@ Read these before relying on Paper Trail for anything real.
 - Not independently audited; the security review is a self-review.
 - No email verification or password reset; registration reveals whether an email is already registered.
 - Rate limits are in memory, per process: run one API instance. No high-availability setup.
-- Expired sessions are removed only when used; there is no cleanup job.
-- **No object store starts by default.** The `minio/minio` image is no longer published, so MinIO is an opt-in compose
-  profile and uploads answer `503` without an S3 endpoint; a replacement has not been chosen. The S3 client is tested
-  against an in-memory store only.
+- Uploaded files live on the API host's disk (`FsStore`): single host only, back them up with the database. The S3
+  client (for several hosts) is tested against an in-memory store only, not against a running S3 service.
 - Photo EXIF/GPS metadata is stored as uploaded ([OPEN_DECISIONS D7](docs/OPEN_DECISIONS.md)).
 - Audio and Office uploads are accepted by type detection but not covered by tests.
 - Append-only means **no deletion** of entries, ledgers or accounts, which conflicts with privacy requests; undecided.
 - Base images and GitHub Actions are pinned by tag, not by digest or SHA. The production images are built in CI and
   smoke-tested locally, but have not run in a real deployment.
-- The `api` image is about 760 MB: `@prisma/client` pulls in the Prisma CLI (and its Studio) as a peer dependency.
-  Trimming it is a follow-up.
 - The repository has no public remote yet, so the packages carry no `repository` field, and the `@paper-trail` npm
   scope has not been reserved.
 - The witness page and `/verify` are in Indonesian only.

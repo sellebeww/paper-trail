@@ -76,10 +76,9 @@ a real TSA and check its terms ([docs/OPERATIONS.md](docs/OPERATIONS.md#choosing
 `pnpm --filter @paper-trail/worker mock-tsa` and put the values it prints in `.env`. The values in `.env.example` are
 for local development only. Stop the infrastructure with `pnpm infra:down`.
 
-**File uploads** (photos, documents) need an S3-compatible store, which the quickstart does not start: the `minio/minio`
-image is no longer published, so MinIO is an opt-in profile (`docker compose --profile s3 up -d`, works only where the
-image is already cached). Everything else, including the demo, runs without it; uploads answer `503` until
-`S3_ENDPOINT` points at a store.
+**File uploads** (photos, documents) are stored in a local directory (`STORAGE_DIR`, default `.data/files`), so there is
+no extra service to run. For several API hosts, switch to an S3-compatible store by setting the `S3_*` values instead
+(the `minio/minio` image is no longer published; MinIO remains an opt-in compose profile `s3`).
 
 ## Repository layout
 

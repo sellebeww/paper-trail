@@ -1,5 +1,9 @@
 // Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
+import { createReadStream, createWriteStream } from 'node:fs';
+import { mkdir, rename, rm } from 'node:fs/promises';
+import { dirname, resolve, sep } from 'node:path';
 import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import {
   CreateBucketCommand,
   DeleteObjectCommand,
@@ -59,6 +63,52 @@ export class S3Store implements ObjectStore {
 
   async delete(key: string): Promise<void> {
     await this.client.send(new DeleteObjectCommand({ Bucket: this.cfg.bucket, Key: key }));
+  }
+}
+
+/**
+ * Files in a local directory: no extra service to run. Keys are `u/<uuid>` made by the server, but the resolved path
+ * is still checked to stay inside the root. Writes go to a temp file first, so a failed upload leaves nothing behind.
+ * shortcut: single host only, no replication; use S3Store when the API runs on more than one machine.
+ */
+export class FsStore implements ObjectStore {
+  private readonly root: string;
+  constructor(root: string) {
+    this.root = resolve(root);
+  }
+
+  private path(key: string): string {
+    const p = resolve(this.root, key);
+    if (!p.startsWith(this.root + sep)) throw new Error('invalid key');
+    return p;
+  }
+
+  async ensureDir(): Promise<void> {
+    await mkdir(this.root, { recursive: true });
+  }
+
+  async put(key: string, body: Readable): Promise<void> {
+    const target = this.path(key);
+    const tmp = `${target}.${process.pid}.part`;
+    await mkdir(dirname(target), { recursive: true });
+    try {
+      await pipeline(body, createWriteStream(tmp, { flags: 'wx' }));
+      await rename(tmp, target);
+    } catch (err) {
+      await rm(tmp, { force: true });
+      throw err;
+    }
+  }
+
+  async get(key: string): Promise<Readable> {
+    const stream = createReadStream(this.path(key));
+    // Surface a missing file now (as S3 does), not as an error event later.
+    await new Promise<void>((ok, fail) => stream.once('open', () => ok()).once('error', fail));
+    return stream;
+  }
+
+  async delete(key: string): Promise<void> {
+    await rm(this.path(key), { force: true });
   }
 }
 

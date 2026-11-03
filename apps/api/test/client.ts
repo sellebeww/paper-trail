@@ -4,13 +4,16 @@ import type { AddressInfo } from 'node:net';
 import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config.js';
 import { createDb } from '../src/db.js';
-import { MemoryStore } from '../src/storage.js';
+import { MemoryStore, type ObjectStore } from '../src/storage.js';
 import { testDatabaseUrls } from './global-setup.js';
 
 export const PASSWORD = 'kata-sandi-panjang-1';
 export const ORIGIN = 'http://localhost:5173';
 
-export const startTestApp = async (overrides: Record<string, string> = {}) => {
+export const startTestApp = async <S extends ObjectStore = MemoryStore>(
+  overrides: Record<string, string> = {},
+  makeStore?: () => S,
+) => {
   const config = loadConfig({
     NODE_ENV: 'test',
     DATABASE_URL: testDatabaseUrls().test,
@@ -26,7 +29,7 @@ export const startTestApp = async (overrides: Record<string, string> = {}) => {
     ...overrides,
   });
   const db = createDb(config.DATABASE_URL);
-  const store = new MemoryStore();
+  const store = (makeStore?.() ?? new MemoryStore()) as S;
   const server = buildApp({
     db,
     store,

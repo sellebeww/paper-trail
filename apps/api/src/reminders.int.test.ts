@@ -1,8 +1,9 @@
 // Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import type { MemoryStore } from './storage.js';
 import { startTestApp } from '../test/client.js';
 
-let app: Awaited<ReturnType<typeof startTestApp>>;
+let app: Awaited<ReturnType<typeof startTestApp<MemoryStore>>>;
 beforeAll(async () => {
   app = await startTestApp();
 });

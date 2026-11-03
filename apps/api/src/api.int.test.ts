@@ -1,5 +1,7 @@
 // Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { purgeExpiredSessions } from './auth.js';
+import type { MemoryStore } from './storage.js';
 import { computePayloadHash, verifyChain, type Entry } from '@paper-trail/chain';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
@@ -11,7 +13,7 @@ import {
   type TestClient,
 } from '../test/client.js';
 
-type App = Awaited<ReturnType<typeof startTestApp>>;
+type App = Awaited<ReturnType<typeof startTestApp<MemoryStore>>>;
 let app: App;
 let small: App; // UPLOAD_MAX_BYTES = 20000
 let limited: App; // AUTH_RATE_LIMIT = 3
@@ -44,6 +46,25 @@ afterAll(async () => {
 });
 
 describe('authentication', () => {
+  it('purges expired sessions and keeps live ones', async () => {
+    const c = app.client();
+    await c.register();
+    const live = await app.db.session.count();
+    const user = await app.db.user.findFirstOrThrow();
+    await app.db.session.create({
+      data: {
+        userId: user.id,
+        tokenHash: randomUUID().replaceAll('-', '').padEnd(64, '0'),
+        csrfToken: 'x',
+        createdAt: new Date(Date.now() - 7200_000),
+        expiresAt: new Date(Date.now() - 1000),
+      },
+    });
+    expect(await purgeExpiredSessions(app.db)).toBeGreaterThanOrEqual(1);
+    expect(await app.db.session.count()).toBe(live);
+    expect((await c.json('GET', '/auth/me')).status).toBe(200);
+  });
+
   it('registers with argon2id, sets hardened cookies, and stores only a hash of the session token', async () => {
     const c = app.client();
     const email = `Budi.${randomUUID()}@Example.Test`;

@@ -1,5 +1,6 @@
 // Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
 import { createHash, generateKeyPairSync, randomBytes, sign, type KeyObject } from 'node:crypto';
+import type { MemoryStore } from './storage.js';
 import {
   buildWitnessMessage,
   canonicalize,
@@ -11,7 +12,7 @@ import {
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { png, startTestApp, uploadForm, type TestClient, type TestJson } from '../test/client.js';
 
-type App = Awaited<ReturnType<typeof startTestApp>>;
+type App = Awaited<ReturnType<typeof startTestApp<MemoryStore>>>;
 let app: App;
 let tight: App; // WITNESS_RATE_LIMIT_IP = 5, WITNESS_RATE_LIMIT_TOKEN = 3
 

@@ -21,13 +21,19 @@ RUN pnpm build
 # The explicit store makes deploy reuse what install downloaded (it would otherwise pick a store next to /out).
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     pnpm --filter @paper-trail/api deploy --legacy --prod --ignore-scripts --prefer-offline --store-dir=/pnpm/store /out/api && \
-    pnpm --filter @paper-trail/worker deploy --legacy --prod --ignore-scripts --prefer-offline --store-dir=/pnpm/store /out/worker
+    pnpm --filter @paper-trail/worker deploy --legacy --prod --ignore-scripts --prefer-offline --store-dir=/pnpm/store /out/worker && \
+    # @prisma/client lists the Prisma CLI as a peer dependency; the running API only needs the generated client.
+    cd /out/api/node_modules && rm -rf .pnpm/prisma@* .pnpm/@prisma+studio-core* .pnpm/@prisma+dev@* .pnpm/@prisma+engines@* \
+      .pnpm/@electric-sql+pglite* .pnpm/typescript@* .pnpm/effect@* .pnpm/elkjs@* .pnpm/react-dom@* .pnpm/react@* prisma
 
 # ---- api -------------------------------------------------------------------------------------------------
 FROM ${NODE_IMAGE} AS api
-ENV NODE_ENV=production API_PORT=3000
+ENV NODE_ENV=production API_PORT=3000 STORAGE_DIR=/data/files
 WORKDIR /app
 COPY --from=build --chown=node:node /out/api .
+# Uploaded files: mount a volume here (or unset STORAGE_DIR and configure S3_*).
+RUN mkdir -p /data/files && chown -R node:node /data
+VOLUME /data
 USER node
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \

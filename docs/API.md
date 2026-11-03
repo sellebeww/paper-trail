@@ -253,8 +253,7 @@ The full v0.1.0 review is in [SECURITY.md](SECURITY.md).
   taken (`EMAIL_TAKEN`) and accounts are not tied to a verified address.
 - **Rate limiting is per process and in memory.** Several API instances would each keep their own counters; use a shared
   store before scaling out.
-- Expired sessions are only removed when they are used; there is no cleanup job yet.
-- The S3 client has been exercised only against an in-memory fake in tests, not yet against a running MinIO.
+- Files are stored on the API host's disk by default; the S3 client has been exercised only against an in-memory fake.
 - EXIF/GPS metadata in photos is stored as uploaded ([OPEN_DECISIONS D7](OPEN_DECISIONS.md)).
 - Production cookies should move to the `__Host-` prefix once the deployment domain is fixed.
 - Witness API paths contain the token. Our logger redacts it; a reverse proxy or CDN in front of the API must be

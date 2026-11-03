@@ -1,5 +1,6 @@
 // Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
 import { createHash, generateKeyPairSync, randomUUID, sign } from 'node:crypto';
+import type { MemoryStore } from './storage.js';
 import {
   anchorData,
   buildWitnessMessage,
@@ -13,7 +14,7 @@ import { extractText } from 'unpdf';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { startTestApp, uploadForm, type TestClient } from '../test/client.js';
 
-type App = Awaited<ReturnType<typeof startTestApp>>;
+type App = Awaited<ReturnType<typeof startTestApp<MemoryStore>>>;
 let app: App;
 let limited: App;
 let tsa: MockTsa;

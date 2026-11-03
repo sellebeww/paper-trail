@@ -82,6 +82,10 @@ export const clearAuthCookies = (res: Response, config: Config) => {
   res.clearCookie(CSRF_COOKIE, { ...cookieBase(config), httpOnly: false });
 };
 
+/** Deletes sessions past their expiry (they are otherwise removed only when someone presents them). */
+export const purgeExpiredSessions = async (db: Db): Promise<number> =>
+  (await db.session.deleteMany({ where: { expiresAt: { lt: new Date() } } })).count;
+
 /** Loads the session from the cookie into res.locals.auth. Anonymous requests simply have no auth. */
 export const loadSession =
   (db: Db): RequestHandler =>
