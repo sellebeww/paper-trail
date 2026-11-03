@@ -125,44 +125,64 @@ A second use of the same link finds status `used` and fails. The plaintext token
 
 ## 4. Flow: periodic anchoring
 
+Implemented in `apps/worker` (`anchor.ts`, `tsa.ts`, `messaging.ts`). Operations: [OPERATIONS.md](OPERATIONS.md).
+
 ```mermaid
 sequenceDiagram
   autonumber
   participant C as Scheduler (worker)
-  participant D as PostgreSQL
+  participant D as PostgreSQL (role pt_worker)
   participant Q as RabbitMQ
   participant W as Anchor consumer (worker)
-  participant T as External TSA
+  participant T as TSA list (TSA_URLS)
 
-  loop every ANCHOR_INTERVAL_MINUTES
-    C->>D: Ledgers whose head is newer than their last anchor
-    C->>Q: Publish anchor job { ledger_id, head_seq, head_hash }
+  loop every ANCHOR_INTERVAL_HOURS (default 6), under a pg advisory lock
+    C->>D: Ledgers whose current head has no ok anchor and none in flight
+    C->>Q: Publish { ledger_id, head_seq, head_hash } (persistent, publisher confirm)
   end
-  Q->>W: Deliver job
-  W->>D: Re-read entry head_seq, confirm head_hash
-  W->>W: anchor_digest = SHA-256(JCS({v, ledger_id, head_seq, head_hash}))
-  W->>T: TimeStampReq (messageImprint = anchor_digest), URL from TSA_URL
-  alt success
+  Q->>W: Deliver (manual ack, prefetch WORKER_PREFETCH)
+  W->>D: INSERT anchor pending … ON CONFLICT DO NOTHING; already ok? ack and stop
+  W->>D: Read the head entry's envelope
+  W->>T: TimeStampReq: imprint = SHA-256(JCS(envelope)) = head_hash, nonce, certReq
+  alt valid response (status, imprint, nonce, genTime, signature, ESS cert, EKU, chain)
     T-->>W: TimeStampToken
-    W->>W: Check imprint and basic token structure
-    W->>D: Store anchor record (idempotent on ledger, head_seq)
+    W->>D: UPDATE … status = ok, token, genTime WHERE status <> 'ok'
     W->>Q: ack
-  else failure
-    W->>Q: nack to retry queue (delay grows each attempt)
-    Note over Q: After max attempts the message goes to the dead-letter queue for a human to inspect
+  else network error, HTTP 5xx, TSA busy
+    W->>Q: republish to retry level n (TTL), ack; it returns to the main queue later
+  else invalid answer, or retries exhausted
+    W->>Q: republish to the DLQ, ack
+    W->>D: status = failed, last_error (picked up again by the next scheduler run)
   end
 ```
 
-Retries are safe because the job is idempotent: the anchor row is unique per `(ledger_id, head_seq)`. Entries
-are never blocked on the TSA.
+Duplicate deliveries cannot produce two anchors: the row is unique per `(ledger_id, head_seq)`, an `ok` row
+short-circuits before any TSA call, the final write only succeeds while the row is not `ok`, and a trigger freezes
+`ok` rows. Entries are never blocked on the TSA.
 
-### Queue topology (proposed)
+### Queue topology
 
-| Name                        | Role                                                       |
-| --------------------------- | ---------------------------------------------------------- |
-| `papertrail.anchor`         | Work queue for anchor jobs; dead-letters to the DLQ.       |
-| `papertrail.anchor.retry.*` | TTL queues giving 1x, 2x, 4x… delays, dead-lettering back. |
-| `papertrail.anchor.dlq`     | Parked jobs after max attempts; alert and manual replay.   |
+| Name (`<prefix>` = `QUEUE_PREFIX`, empty by default) | Role                                                                                                                                                                                                        |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<prefix>papertrail` (direct exchange)               | Routes jobs by queue name.                                                                                                                                                                                  |
+| `anchor.requests`, `reminders`                       | Durable work queues; persistent messages; manual ack.                                                                                                                                                       |
+| `<queue>.retry.<i>`                                  | One queue per backoff level (`RETRY_DELAYS_MS`, default 10 s, 1 min, 5 min, 30 min) with `x-message-ttl`; expired messages dead-letter back to `<queue>`. One queue per level avoids head-of-line blocking. |
+| `<queue>.dlq`                                        | Permanent failures and exhausted retries, with `x-error` / `x-attempt` headers. Replayed by hand.                                                                                                           |
+
+### Reminders
+
+The worker also sends "remember to write things down" reminders (`reminders.ts`): every
+`REMINDER_TICK_SECONDS` it locks due rows in `reminder_schedules` (`FOR UPDATE SKIP LOCKED`), publishes a job,
+and moves `next_run_at` to the next occurrence. The consumer checks `reminder_deliveries` (unique per schedule and
+time) so a redelivered job sends nothing. Delivery goes through a `Notifier` (email via SMTP, or console in
+development; web push is on the roadmap). Schedules use WIB/WITA/WIT, which have fixed UTC offsets.
+
+### Least privilege
+
+The worker connects as a login role that is a member of `pt_worker`: `SELECT` on `ledgers` and `entries`,
+`SELECT (id, email)` on `users`, read/write on `anchors`, `reminder_schedules.next_run_at` and
+`reminder_deliveries`. It has no write access to entries, attachments, witnesses or users, and cannot read
+password hashes or sessions (tested in `worker.int.test.ts`).
 
 ## 5. Flow: export and verify
 

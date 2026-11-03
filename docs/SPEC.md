@@ -1,4 +1,4 @@
-# Paper Trail Format Specification — Draft v0.3
+# Paper Trail Format Specification — Draft v0.4
 
 Status: **draft, pre-alpha**. Nothing here is frozen. Changes from v0.1 are listed in §10. Items marked **[OPEN]** are decisions
 tracked in [OPEN_DECISIONS.md](OPEN_DECISIONS.md). The key words MUST, SHOULD and MAY are used as in RFC 2119.
@@ -204,31 +204,54 @@ is true. Identity binding is **[OPEN]**.
 
 An **anchor** pins the chain head to a time attested by an external Time-Stamping Authority (TSA).
 
-### 5.1 What is hashed
+### 5.1 What is timestamped
+
+The **data** given to the TSA is the head entry's canonical envelope, the same bytes whose SHA-256 is its
+`entry_hash` (§2.2):
 
 ```
-anchor_digest = SHA256( JCS({ v, ledger_id, head_seq, head_hash }) )     // v = 1
+data            = UTF-8( JCS(envelope of entry head_seq) )
+messageImprint  = { hashAlgorithm: sha256, hashedMessage: SHA256(data) }  =  head_hash
+anchor_digest   = head_hash
 ```
 
-`head_hash` is the `entry_hash` of entry `head_seq`. Because every entry commits to its predecessor, one
-anchor covers entries `0 … head_seq`. Only `anchor_digest` is sent to the TSA, as the `messageImprint` of an
-RFC 3161 `TimeStampReq` with `hashAlgorithm = sha256`. No ledger content or ID leaves the system.
+So the imprint is simply `head_hash`. Nothing new is hashed, and anyone can check an anchor with standard
+tools and no Paper Trail code: write the envelope JCS to a file and run
+`openssl ts -verify -data envelope.json -in token.der -token_in -CAfile tsa-roots.pem`.
+
+Why not `SHA256(JCS({v, ledger_id, head_seq, head_hash}))` (v0.3) or `SHA256(bytes(head_hash))` (a later proposal)?
+`head_hash` already commits to `ledger_id`, `seq` and, through `prev_hash`, the whole history, so wrapping or
+re-hashing it adds no security. Both alternatives would also make the timestamped "data" something that exists only
+to be timestamped, which standard verifiers cannot reproduce from the entry itself.
+
+Because every entry commits to its predecessor, one anchor covers entries `0 … head_seq`. Only the 32-byte imprint is
+sent to the TSA; no ledger content leaves the system.
+
+Each request carries a random 64-bit `nonce` and `certReq = true`. A response is accepted only if all of these hold
+(apps/worker `validateTimeStampResponse`):
+
+1. `PKIStatus` is `granted` (0) or `grantedWithMods` (1). `waiting` (3) is retried; anything else is a refusal.
+2. The token is CMS `SignedData` whose content is a `TSTInfo` (`id-ct-TSTInfo`).
+3. `messageImprint` is SHA-256 and equals the imprint we sent; `nonce` equals our nonce.
+4. `genTime` is within 10 minutes of the worker's clock.
+5. The CMS signature verifies with the certificate embedded in the token; the signed attributes include an ESS
+   signing-certificate attribute (RFC 5035 v2, or RFC 2634 v1) whose hash matches that certificate (RFC 3161 §2.4.2).
+6. The certificate was valid at `genTime` and has a critical extended key usage `id-kp-timeStamping`.
+7. If trust anchors are configured (`TSA_CA_CERTS`), the certificate chains to one of them.
 
 ### 5.2 What is stored
 
-| Field           | Description                                                                                     |
-| --------------- | ----------------------------------------------------------------------------------------------- |
-| `v`             | `1`                                                                                             |
-| `ledger_id`     | Anchored ledger.                                                                                |
-| `head_seq`      | Sequence number of the anchored head.                                                           |
-| `head_hash`     | Hash of the anchored head.                                                                      |
-| `anchor_digest` | The value sent to the TSA.                                                                      |
-| `tsa_label`     | Human-readable TSA name from configuration (informational, not trusted).                        |
-| `tst`           | The RFC 3161 `TimeStampToken` (CMS `SignedData`, DER), base64url. Includes the TSA's `genTime`. |
-| `certs`         | TSA certificate chain as DER base64url, if not already inside `tst`.                            |
-| `requested_at`  | Server time of the request (informational; the authoritative time is `genTime` inside `tst`).   |
+| Field (database `anchors`)                             | Exported as (§6)                     | Description                                                                                                                  |
+| ------------------------------------------------------ | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| `ledger_id`, `anchored_head_seq`, `anchored_head_hash` | `ledger_id`, `head_seq`, `head_hash` | The anchored head. Unique per (`ledger_id`, `head_seq`).                                                                     |
+| `anchor_digest`                                        | `anchor_digest`                      | The imprint; equal to `head_hash` (§5.1).                                                                                    |
+| `tst_token`                                            | `tst`                                | The RFC 3161 `TimeStampToken` (CMS `ContentInfo`, DER; base64url when exported). Includes `genTime` and the TSA certificate. |
+| `tst_gen_time`                                         | –                                    | `genTime` copied out for queries. The token is authoritative.                                                                |
+| `tsa_url`                                              | `tsa_label`                          | Which configured TSA answered (credentials stripped). Informational, not trusted.                                            |
+| `status`, `attempts`, `last_error`                     | –                                    | Operational state: `pending`, `ok` (frozen by a trigger), or `failed`.                                                       |
 
-The TSA URL comes from configuration (`TSA_URL`) and is never hard-coded. Choosing a TSA is **[OPEN]**.
+TSA endpoints come from configuration (`TSA_URLS`, a fallback list tried in order) and are never hard-coded.
+Choosing providers is **[OPEN]** (OPEN_DECISIONS D1).
 
 ### 5.3 What an anchor proves
 
@@ -318,15 +341,18 @@ independent findings (anchors, witnesses) that can be evaluated.
    equals `witness:` + SHA-256(`witness_pub`) (else `WITNESS_SIG_INVALID`). Undisclosed cosign payloads are
    reported as "not checkable", not as errors.
 7. **Anchors.** For each anchor: `head_seq` exists and `head_hash == entries[head_seq].entry_hash`
-   (`ANCHOR_INVALID`/`HEAD_MISMATCH`); recompute `anchor_digest` (`DIGEST_MISMATCH`); parse the token and check
-   `messageImprint` equals `anchor_digest` (`IMPRINT_MISMATCH`/`TOKEN_MALFORMED`); verify the CMS signature
-   and certificate chain against trusted roots (`SIGNATURE_INVALID`/`CERT_UNTRUSTED`). Without trusted roots,
-   skip the signature part and emit `ANCHOR_UNVERIFIED`.
+   (`ANCHOR_INVALID`/`HEAD_MISMATCH`); check `anchor_digest == head_hash` (`DIGEST_MISMATCH`); parse the token and
+   check `messageImprint` equals `head_hash` (`IMPRINT_MISMATCH`/`TOKEN_MALFORMED`); verify the CMS signature, the ESS
+   signing-certificate attribute, the timeStamping key usage, and the certificate chain against trusted roots
+   (`SIGNATURE_INVALID`/`CERT_UNTRUSTED`). Without trusted roots, skip the chain part and emit `ANCHOR_UNVERIFIED`.
 8. **Coverage.** No anchors → `NO_ANCHOR`. Otherwise let `H` be the highest verified `head_seq`; if
    `H < head.seq` → `UNANCHORED_TAIL`.
 9. **Time bound.** For each entry, take the earliest verified anchor with `head_seq >= seq`. If the entry's
-   `created_at` is later than that anchor's `genTime` → `ANCHOR_TIME_CONFLICT`. The usable guarantee for an
-   entry is therefore "existed no later than that `genTime`"; `created_at` is the server's claim inside it.
+   `created_at` is later than that anchor's `genTime` + 1 second + the token's `accuracy` → `ANCHOR_TIME_CONFLICT`.
+   (Many TSAs report `genTime` in whole seconds while `created_at` has milliseconds; without this tolerance an honest
+   anchor made in the same second would be flagged.) The usable guarantee for an entry is "existed no later than
+   that `genTime` (± accuracy)"; `created_at` is the server's claim inside it. The worker refuses to store a token that
+   would trip this check (server clock ahead of the TSA) and retries later.
 10. **Verdict.** `OK` if no `error` finding, else `FAILED`.
 
 ## 9. Versioning
@@ -336,6 +362,14 @@ independent findings (anchors, witnesses) that can be evaluated.
 - `0.x` pack versions carry no stability promise.
 
 ## 10. Changes
+
+**v0.4** (anchoring implemented; entry `v` stays `1`):
+
+- The timestamped data is the head entry's JCS envelope, so `messageImprint = anchor_digest = head_hash` (§5.1).
+  v0.3's `SHA256(JCS({v, ledger_id, head_seq, head_hash}))` is dropped; no anchors existed under it.
+- Response validation rules, including the ESS signing-certificate attribute (§5.1).
+- Stored anchor fields aligned with the database; `TSA_URLS` is a fallback list (§5.2).
+- `ANCHOR_TIME_CONFLICT` tolerates 1 s of `genTime` precision plus the token's `accuracy` (§8 step 9).
 
 **v0.3** (witness co-sign; entry `v` stays `1`, but cosign payloads from v0.2 drafts are not valid v0.3 payloads):
 

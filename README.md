@@ -31,6 +31,7 @@ an entry is true, who really wrote it, or that nothing was left out. See [docs/T
 | [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md)     | What is protected, from whom, and the honest limits                        |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)     | Components and Mermaid flow diagrams                                       |
 | [docs/API.md](docs/API.md)                       | Owner-side HTTP API, security notes, `curl` quickstart                     |
+| [docs/OPERATIONS.md](docs/OPERATIONS.md)         | Worker runbook: TSA setup, queues, DLQ, manual anchoring                   |
 | [docs/OPEN_DECISIONS.md](docs/OPEN_DECISIONS.md) | Undecided questions with recommendations                                   |
 
 ## Repository layout
@@ -53,9 +54,17 @@ docs/             Specification and design documents
 
 ```bash
 pnpm install
-pnpm infra:up      # copies .env.example to .env if missing, starts postgres, rabbitmq, minio
-pnpm dev           # api, worker, web
+pnpm infra:up                                  # copies .env.example to .env if missing, starts postgres, rabbitmq, minio
+pnpm --filter @paper-trail/api db:migrate      # schema and integrity triggers
+pnpm --filter @paper-trail/worker db:role      # least-privilege database role for the worker
+pnpm dev                                       # api, worker, web
 ```
+
+**Time-stamping authority (TSA).** Anchoring sends a hash of the newest entry to the RFC 3161 TSAs listed in
+`TSA_URLS`. No TSA is configured or hard-coded: **you must choose providers yourself and verify their terms of service,
+rate limits and availability before using them.** For an offline demo there is a local mock TSA whose tokens prove
+nothing (`pnpm --filter @paper-trail/worker mock-tsa`). See [docs/OPERATIONS.md](docs/OPERATIONS.md) for setup,
+monitoring the queues and triggering an anchor by hand.
 
 - Web: http://localhost:5173 (shows service status)
 - API: http://localhost:3000/health
@@ -67,13 +76,14 @@ services you already run. Stop infrastructure with `pnpm infra:down`.
 
 ## Scripts
 
-| Command          | What it does                             |
-| ---------------- | ---------------------------------------- |
-| `pnpm dev`       | Run api, worker and web in watch mode    |
-| `pnpm build`     | Build every package                      |
-| `pnpm lint`      | ESLint and Prettier check                |
-| `pnpm typecheck` | TypeScript strict check in every package |
-| `pnpm test`      | Vitest in every package                  |
+| Command          | What it does                              |
+| ---------------- | ----------------------------------------- |
+| `pnpm dev`       | Run api, worker and web in watch mode     |
+| `pnpm build`     | Build every package                       |
+| `pnpm lint`      | ESLint and Prettier check                 |
+| `pnpm typecheck` | TypeScript strict check in every package  |
+| `pnpm test`      | Vitest in every package                   |
+| `pnpm test:int`  | Integration tests (needs `pnpm infra:up`) |
 
 ## Author & License
 

@@ -7,7 +7,8 @@ Items marked **VERIFY** depend on external facts that have **not** been checked;
 
 ### D1. Which public TSA to use — VERIFY
 
-- **Where it lives:** `TSA_URL` in `.env` (empty on purpose). No TSA URL is hard-coded anywhere.
+- **Where it lives:** `TSA_URLS` in `.env`, a comma-separated fallback list tried in order (empty on purpose), plus
+  optional `TSA_CA_CERTS` (PEM roots for chain verification). No TSA URL is hard-coded anywhere.
 - **Options to evaluate:** a free public TSA run by a certificate authority or non-profit; a paid commercial TSA with an SLA;
   a TSA from a trust-service provider in Indonesia, if one offers RFC 3161.
 - **Recommendation:** start with one free public TSA for development, and design the config to hold a **list** of
@@ -20,7 +21,8 @@ Items marked **VERIFY** depend on external facts that have **not** been checked;
 
 ### D2. Anchor interval
 
-- **Recommendation:** 60 minutes (`ANCHOR_INTERVAL_MINUTES`), only for ledgers whose head changed.
+- **Current setting:** 6 hours (`ANCHOR_INTERVAL_HOURS`, as requested in Step 5), only for ledgers whose head changed.
+  The owner can trigger an immediate anchor for demos (`anchor:now`). Shorter intervals narrow the unanchored window.
 - **Why:** it is the width of the "unanchored tail" window (THREAT_MODEL §4.2). Shorter costs more TSA calls;
   one request per active ledger per hour is cheap at demo scale. Batching many ledgers into a Merkle tree per TSA
   call would cut calls further but adds proof structure; defer until scale demands it.

@@ -203,6 +203,12 @@ that key again; the witness also cannot later prove "that key was mine" beyond h
 
 ## 6. Keys, TSA and trust roots
 
+Before a token is stored, the worker checks status, imprint, nonce, `genTime`, the CMS signature, the ESS
+signing-certificate attribute and the timeStamping key usage, and, when `TSA_CA_CERTS` is set, the certificate chain
+(SPEC §5.1). A TSA that answers wrongly is never trusted for that anchor; the anchor is marked `failed` and retried
+later. The worker runs as a database role that cannot write entries, so a compromised worker can withhold or delay
+anchors but cannot alter the chain.
+
 | Failure                                        | Impact                                                                                                                                                                                    |
 | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | TSA private key compromised / TSA dishonest    | An attacker could forge timestamps; anchors from that TSA lose value from the compromise date, and certificate revocation may apply. Using two independent TSAs per anchor is **[OPEN]**. |

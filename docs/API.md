@@ -82,18 +82,30 @@ taken from the server clock; no endpoint accepts a client timestamp.
 
 ### Ledgers
 
-| Method & path           | Body / query                                                        | Response                                                               |
-| ----------------------- | ------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `POST /ledgers`         | `{ title (1–120), category: kerja\|sewa\|freelance\|gig\|lainnya }` | `201 { ledger }`                                                       |
-| `GET /ledgers`          | –                                                                   | `200 { ledgers: [...] }` newest first (max 200)                        |
-| `GET /ledgers/:id`      | –                                                                   | `200 { ledger, last_anchor, last_confirmed_anchor }`                   |
-| `GET /ledgers/:id/head` | –                                                                   | `200 { ledger_id, head_seq, head_hash, head_created_at, server_time }` |
+| Method & path           | Body / query                                                        | Response                                                                 |
+| ----------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `POST /ledgers`         | `{ title (1–120), category: kerja\|sewa\|freelance\|gig\|lainnya }` | `201 { ledger }`                                                         |
+| `GET /ledgers`          | –                                                                   | `200 { ledgers: [...] }` newest first (max 200)                          |
+| `GET /ledgers/:id`      | –                                                                   | `200 { ledger, last_anchor, last_confirmed_anchor, unanchored_entries }` |
+| `GET /ledgers/:id/head` | –                                                                   | `200 { ledger_id, head_seq, head_hash, head_created_at, server_time }`   |
 
 `ledger` = `{ id, title, category, head_seq, head_hash, created_at }`. `head_seq`/`head_hash` are `null` until the
-first entry. `last_anchor` is the most recent anchor of any status (`pending|ok|failed`, with `anchored_head_seq`,
-`anchored_head_hash`, `gen_time`, `attempts`), `last_confirmed_anchor` the most recent with `status = ok`; both are
-`null` until anchoring exists (a later step). Entries after `last_confirmed_anchor.anchored_head_seq` have no external
-time proof yet ([SPEC §8](SPEC.md#8-verification-algorithm), `UNANCHORED_TAIL`).
+first entry. `last_anchor` is the most recent anchor of any status (`pending|ok|failed`) and `last_confirmed_anchor`
+the most recent with `status = ok`; each is `null` or `{ status, anchored_head_seq, anchored_head_hash, gen_time,
+tsa_url, attempts, updated_at }`, where `gen_time` is the TSA's time. Anchors are created by the worker
+([OPERATIONS.md](OPERATIONS.md)). `unanchored_entries` counts entries after `last_confirmed_anchor.anchored_head_seq`:
+they have no external time proof yet ([SPEC §8](SPEC.md#8-verification-algorithm), `UNANCHORED_TAIL`).
+
+### Reminders
+
+| Method & path           | Body                                                                                                                         | Response            |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ------------------- |
+| `POST /reminders`       | `{ ledger_id?, days_of_week: [1..7] (1 = Senin), time: "HH:MM", timezone?: Asia/Jakarta \| Asia/Makassar \| Asia/Jayapura }` | `201 { reminder }`  |
+| `GET /reminders`        | –                                                                                                                            | `200 { reminders }` |
+| `DELETE /reminders/:id` | –                                                                                                                            | `204`               |
+
+Example: every working day at 17:00 WIB is `{ "days_of_week": [1,2,3,4,5], "time": "17:00" }`. `next_run_at` is `null`
+until the worker schedules it (within `REMINDER_TICK_SECONDS`). Reminders are not evidence, so they can be deleted.
 
 **Keep the head.** `GET /ledgers/:id/head` and every append response return `head_seq` + `head_hash`. Clients should
 store the latest one outside the server ("last proof I saw"): if the server ever shows a chain that lacks that hash at
