@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Vassel Goleyu. All rights reserved.
+// Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
 // RabbitMQ topology and an at-least-once consumer with backoff retries and a dead-letter queue.
 //
 //   exchange <prefix>papertrail (direct, durable)
@@ -99,6 +99,15 @@ export const consumeWithRetry = async <T>(ch: ConfirmChannel, o: ConsumeOptions<
     await ch.waitForConfirms();
   };
 
+  // With the channel gone (broker restart, lost connection) nack throws; the broker requeues unacked messages itself.
+  const requeue = (m: ConsumeMessage) => {
+    try {
+      ch.nack(m, false, true);
+    } catch {
+      // already requeued by the broker
+    }
+  };
+
   const handle = async (m: ConsumeMessage) => {
     const attempt = Number(m.properties.headers?.['x-attempt'] ?? 0);
     const messageId = m.properties.messageId as string | undefined;
@@ -116,7 +125,7 @@ export const consumeWithRetry = async <T>(ch: ConfirmChannel, o: ConsumeOptions<
           reason: 'malformed message',
         });
       } catch {
-        ch.nack(m, false, true);
+        requeue(m);
       }
       return;
     }
@@ -169,7 +178,7 @@ export const consumeWithRetry = async <T>(ch: ConfirmChannel, o: ConsumeOptions<
           );
         }
       } catch {
-        ch.nack(m, false, true);
+        requeue(m);
       }
     }
   };

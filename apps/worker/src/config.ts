@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Vassel Goleyu. All rights reserved.
+// Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
 import { z } from 'zod';
 
 const list = (s: string) =>
@@ -15,7 +15,12 @@ const schema = z
     WEB_ORIGIN: z.string().url().default('http://localhost:5173'),
 
     /** Comma-separated RFC 3161 endpoints, tried in order. You must check each provider's terms. */
-    TSA_URLS: z.string().default('').transform(list).pipe(z.array(z.string().url())),
+    // http(s) only: the worker must never fetch data:, file: or other schemes from config (SSRF surface).
+    TSA_URLS: z
+      .string()
+      .default('')
+      .transform(list)
+      .pipe(z.array(z.url({ protocol: /^https?$/ }))),
     /** Optional PEM bundle of TSA root/intermediate certificates to verify the TSA chain against. */
     TSA_CA_CERTS: z.string().optional(),
     TSA_TIMEOUT_MS: z.coerce.number().int().min(100).default(10_000),

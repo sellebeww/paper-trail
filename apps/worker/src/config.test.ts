@@ -1,4 +1,4 @@
-// Copyright (c) 2026 Vassel Goleyu. All rights reserved.
+// Copyright (c) 2026 Vassel Goleyu. SPDX-License-Identifier: Apache-2.0
 import { describe, expect, it } from 'vitest';
 import { loadConfig } from './config.js';
 
@@ -20,6 +20,8 @@ describe('worker config', () => {
       loadConfig({ ...base, TSA_URLS: 'https://a.example/tsr, http://b.example/tsr' }).TSA_URLS,
     ).toEqual(['https://a.example/tsr', 'http://b.example/tsr']);
     expect(() => loadConfig({ ...base, TSA_URLS: 'not a url' })).toThrow();
+    expect(() => loadConfig({ ...base, TSA_URLS: 'data:text/plain,x' })).toThrow();
+    expect(() => loadConfig({ ...base, TSA_URLS: 'file:///etc/passwd' })).toThrow();
   });
 
   it('needs SMTP_URL for email notifications', () => {
