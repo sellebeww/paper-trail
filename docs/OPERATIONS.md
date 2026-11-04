@@ -47,6 +47,28 @@ before relying on it): free; timestamps may be used commercially; at most **one 
 effort, **no SLA**, no uptime or restoration guarantee; no request logs kept. With it set `WORKER_PREFETCH=1` so jobs
 do not run in parallel, and add a second independent TSA to `TSA_URLS` for anything that matters.
 
+**Tested with DigiCert (2026-11-04).** `http://timestamp.digicert.com`, root `DigiCert Trusted Root G4`. Also works end to end
+(chain verified, about 0.8 s, no accuracy stated). Its token carries a cross-signed copy of that root, which the
+verifier used to trip over; fixed, with a real token kept as a regression test. DigiCert's page for this service is
+written for code signing (Authenticode) and states **no** rate limit, SLA or terms for other uses, and says its TSA
+certificates are replaced at least every 15 months (verification checks the certificate as of the token's time, so old
+packs stay valid).
+
+**Recommended setup, and why.** Put FreeTSA first (its pages explicitly allow this use) and DigiCert second as a
+failover, so one provider being down does not leave a ledger unanchored. The list is failover, not redundancy: each
+anchor holds one token, from the first provider that answers. Roots for both are in
+[../deploy/tsa-roots.pem](../deploy/tsa-roots.pem) (and at `/app/tsa-roots.pem` in the worker image) with their SHA-256
+fingerprints: compare them with what the providers publish before relying on them.
+
+```
+TSA_URLS=https://freetsa.org/tsr,http://timestamp.digicert.com
+TSA_CA_CERTS=deploy/tsa-roots.pem
+WORKER_PREFETCH=1
+```
+
+Nothing is enabled by default: a fresh checkout makes no outside requests until you set `TSA_URLS`. For stronger
+guarantees (an SLA, a stated legal standing) arrange a commercial or locally qualified TSA; the setup does not change.
+
 ### Offline demo with the mock TSA
 
 ```bash

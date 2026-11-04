@@ -40,8 +40,12 @@ First public pre-alpha. The format is stable (SPEC 1.0); the software is not pro
 
 ### Changed
 
+- Erasing a ledger's content or a whole account at the owner's request, keeping the hash chain and anchors valid
+  (migration `_erasure`; password and typed confirmation required).
 - Email verification and password reset (one-time links by mail; reset only for verified addresses; reset signs out every
   session). Unverified accounts keep working and see a banner.
+- Verifier: tokens that carry a cross-signed copy of a trusted root (DigiCert) now verify; found by testing a real DigiCert
+  token. Recommended TSA setup (FreeTSA, DigiCert failover) with a roots bundle.
 - `pnpm --filter @paper-trail/worker tsa:check` tests a real time-stamping authority with the worker's own client. FreeTSA was
   checked end to end (worker, CLI, and the Python + OpenSSL steps) and a real-token example pack added.
 - Uploaded files are stored on local disk by default (`STORAGE_DIR`); S3 is optional. Expired sessions are purged hourly.
@@ -72,8 +76,8 @@ Read these before relying on Paper Trail for anything real.
 
 **Not ready for production**
 
-- **No time-stamping authority is configured.** You must choose one and check its terms; the bundled mock TSA (demo,
-  tests) proves nothing.
+- **No time-stamping authority is enabled by default.** A tested setup is documented (FreeTSA with DigiCert as failover);
+  you must enable it and accept its terms, and neither provider offers an SLA. The bundled mock TSA proves nothing.
 - Not independently audited; the security review is a self-review.
 - Registration reveals whether an email is already registered. Production needs an SMTP server for account mail.
 - Rate limits are in memory, per process: run one API instance. No high-availability setup.
@@ -81,8 +85,8 @@ Read these before relying on Paper Trail for anything real.
   client (for several hosts) is tested against an in-memory store only, not against a running S3 service.
 - Photo EXIF/GPS metadata is stored as uploaded ([OPEN_DECISIONS D7](docs/OPEN_DECISIONS.md)).
 - Audio and Office uploads are accepted by type detection but not covered by tests.
-- Append-only means **no deletion** of entries, ledgers or accounts, which conflicts with privacy requests; undecided
-  ([D11](docs/OPEN_DECISIONS.md) has a recommendation).
+- Erasure removes content, not the skeleton (numbers, times, hashes), and cannot recall packs already shared. Whether it
+  meets the privacy law where you host ([D11](docs/OPEN_DECISIONS.md)) has not been checked.
 - Base images and GitHub Actions are pinned by tag, not by digest or SHA. The production images are built in CI and
   smoke-tested locally, but have not run in a real deployment.
 - The repository has no public remote yet, so the packages carry no `repository` field, and the `@paper-trail` npm

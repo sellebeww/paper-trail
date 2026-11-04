@@ -5,7 +5,7 @@ Items marked **VERIFY** depend on external facts that have **not** been checked;
 
 ## Needs your action before the anchoring step
 
-### D1. Which public TSA to use — VERIFY (FreeTSA tested, not chosen)
+### D1. Which public TSA to use — decided for now (FreeTSA first, DigiCert failover)
 
 - **Where it lives:** `TSA_URLS` in `.env`, a comma-separated fallback list tried in order (empty on purpose), plus
   optional `TSA_CA_CERTS` (PEM roots for chain verification). No TSA URL is hard-coded anywhere.
@@ -19,7 +19,10 @@ Items marked **VERIFY** depend on external facts that have **not** been checked;
   the TSA certificate chain and its expiry, and whether an Indonesian provider exists and what it requires.
   I have not checked any of these, except for FreeTSA: it works end to end with this project's worker and verifier (and
   with OpenSSL) and its stated terms allow commercial use at one request per second, but it is best effort with no SLA
-  ([OPERATIONS.md](OPERATIONS.md#choosing-a-tsa)). Choosing it, a paid TSA, or an Indonesian provider is still yours.
+  ([OPERATIONS.md](OPERATIONS.md#choosing-a-tsa)). DigiCert was tested the same way (it exposed and led to a fix of a cross-signed-root bug). **Decision:** FreeTSA first because
+  its terms explicitly allow this use, DigiCert second as failover, off by default; see
+  [OPERATIONS.md](OPERATIONS.md#choosing-a-tsa). **Still open:** a paid or locally qualified TSA (and whether an Indonesian
+  provider offers RFC 3161), which matters for legal standing and SLA, not for how the software works.
 
 ### D2. Anchor interval
 
@@ -89,23 +92,27 @@ Items marked **VERIFY** depend on external facts that have **not** been checked;
 
 ## Needs a decision before real use
 
-### D11. Deleting data at the owner's request — OPEN
+### D11. Deleting data at the owner's request — decided and implemented (legal review still open)
 
 - **The conflict:** entries are append-only by design (database triggers and the hash chain), but people have a right to
-  ask for their personal data to be erased, and an owner may want a ledger gone (for example after a dispute ends or
-  if the account is at risk). Today there is **no deletion at all**: not of an entry, a ledger, an upload or an account.
-- **Recommendation: erase content, keep the skeleton.** The format already allows an entry whose payload is not
-  disclosed (SPEC §6): the chain still verifies from `payload_hash`. So deletion would (1) remove the payload
-  and stored files of the chosen entries or ledger, keeping each entry's hashes, sequence number and time; (2) delete
-  the account's email, password hash and sessions; (3) record an `erased_at` marker. Packs exported earlier keep
-  working; packs exported later show the entries as undisclosed. This needs a controlled path through the append-only
-  trigger (only `payload` may become empty, and only through one audited function), a new migration, and an API and UI
-  flow with a clear warning that it cannot be undone.
-- **What it does not do:** copies already exported or already held by witnesses and other people are out of our hands,
-  and a short low-entropy text could in theory be guessed from its retained hash.
-- **Why it is yours to decide:** it touches legal obligations (Indonesia's personal data protection law, UU PDP 27/2022,
-  and whatever applies where you host) that I have not checked, and it changes what the product promises. Until it is
-  decided, do not use real data.
+  ask for their personal data to be erased, and an owner may want a ledger gone (after a dispute ends, or if the
+  account is at risk).
+- **Decision: erase content, keep the skeleton.** The format already allows an entry whose payload is not disclosed
+  (SPEC §6), so the chain keeps verifying from `payload_hash`. Erasing a ledger empties every entry's payload (setting
+  `erased_at`), deletes its attachments and stored files, deletes the witness rows (names and keys), revokes unused witness
+  links and removes its reminders. Each entry keeps its number, time and hashes, so the chain, the anchors and any pack
+  exported later still verify, with the content undisclosed. Erasing an account does this for every ledger, then replaces
+  the email with `deleted-<id>@erased.invalid`, the password with a random one nobody knows, and removes sessions and tokens.
+- **How it stays safe:** the database triggers allow exactly one change to an entry (payload becomes `{}` and
+  `erased_at` is set, everything else equal), allow deleting attachments and witness rows only for an erased entry, and
+  still reject everything else (migration `_erasure`, tests in `erase.int.test.ts`). Both actions need the **password again**
+  and the ledger title or account email **typed out**, with the login rate limit, so a stolen session cannot wipe
+  evidence by accident or in one click.
+- **What it does not do:** copies already exported or held by witnesses and other people are out of our hands; a short,
+  low-entropy text could in theory be guessed from its retained hash; storage files that fail to delete are logged and
+  left orphaned rather than breaking the entry.
+- **Still open, and yours:** whether this satisfies the law where you host (Indonesia's UU PDP 27/2022 and others): I have
+  not checked it. Do not use real data until someone qualified has.
 
 ## Already decided in Step 1 (tell me if you disagree)
 

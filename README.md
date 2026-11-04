@@ -71,8 +71,9 @@ Then open <http://localhost:5173>:
   TSA root to check the anchors' certificates too.
 - **CLI:** `pnpm build && npx paper-trail-verify demo/demo-pack.json --roots demo/demo-tsa-root.pem`
 
-The demo's anchors come from a local **mock TSA that proves nothing about real time**. For live anchoring you must pick
-a real TSA and check its terms ([docs/OPERATIONS.md](docs/OPERATIONS.md#choosing-a-tsa)); for a local experiment, run
+The demo's anchors come from a local **mock TSA that proves nothing about real time**. For live anchoring, enable a
+real TSA after reading its terms; a tested setup is described in
+[docs/OPERATIONS.md](docs/OPERATIONS.md#choosing-a-tsa). For a local experiment, run
 `pnpm --filter @paper-trail/worker mock-tsa` and put the values it prints in `.env`. The values in `.env.example` are
 for local development only. Stop the infrastructure with `pnpm infra:down`.
 
@@ -117,9 +118,10 @@ browser), but it has not been used for a real case, audited independently, or de
 
 Next, roughly in order:
 
-1. Choose and document a production TSA (with its trust roots), and run a real deployment.
+1. Run a real deployment with the tested TSA setup (FreeTSA, DigiCert failover), and arrange a TSA with an SLA or a
+   legal standing if the case needs one.
 2. A shared rate-limit store, so the API can run on more than one instance.
-3. Deleting data at the owner's request without breaking the chain ([D11](docs/OPEN_DECISIONS.md), recommendation written, needs your decision).
+3. A legal review of erasure and of how packs are presented ([D11](docs/OPEN_DECISIONS.md)).
 4. Optional EXIF/GPS stripping for photos ([D7](docs/OPEN_DECISIONS.md)).
 5. Server-signed receipts ([D6](docs/OPEN_DECISIONS.md)) and, if legal aides need it, witness identity options
    ([D5](docs/OPEN_DECISIONS.md)).
