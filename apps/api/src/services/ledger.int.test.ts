@@ -141,7 +141,9 @@ describe('database guards (direct SQL, bypassing the application)', () => {
   it('rejects UPDATE on entries', async () => {
     await expect(
       db.$executeRaw`UPDATE entries SET payload = '{"text":"diubah"}'::jsonb WHERE ledger_id = ${ledgerId}::uuid AND seq = 1`,
-    ).rejects.toThrow(/UPDATE on "entries" is not allowed: this table is append-only/);
+    ).rejects.toThrow(
+      /UPDATE on "entries" is not allowed: only erasing the payload of an entry is/,
+    );
   });
 
   it('rejects DELETE on entries', async () => {

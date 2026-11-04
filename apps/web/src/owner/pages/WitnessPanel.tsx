@@ -20,6 +20,7 @@ const rememberedName = () => {
 type Created = { invite: Invite; token: string; url: string };
 
 function summaryOf(entry: ApiEntry, t: ReturnType<typeof useI18n>['t']) {
+  if (entry.erased_at) return t('entry.erasedShort');
   if (entry.type === 'note') return shorten(payloadAs.note(entry).text, 140);
   if (entry.type === 'photo') return payloadAs.photo(entry).caption ?? t('type.photo');
   if (entry.type === 'file') return payloadAs.file(entry).name;

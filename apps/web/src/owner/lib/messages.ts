@@ -8,6 +8,26 @@ export const id = {
   'nav.about': 'Tentang',
   'nav.verify': 'Verifikasi paket',
   'nav.logout': 'Keluar',
+  'nav.account': 'Akun',
+  'entry.erased': 'Isi dihapus pada {date}. Kode dan waktu catatan ini tetap ada di rantai.',
+  'entry.erasedShort': '(isi dihapus)',
+  'code.PASSWORD_INVALID': 'Kata sandi salah.',
+  'code.CONFIRMATION_MISMATCH': 'Yang Anda ketik tidak sama. Ketik persis seperti yang diminta.',
+  'erase.summary': 'Hapus isi ledger ini',
+  'erase.warning':
+    'Tidak bisa dibatalkan. Isi semua catatan, foto, berkas, dan nama saksi dihapus permanen dari server. Yang tersisa hanya nomor, waktu, dan kode (hash) tiap catatan, sehingga rantai dan jangkar waktu tetap sah. Paket bukti yang sudah Anda unduh atau kirim tidak ikut terhapus, dan tautan saksi yang belum dipakai dicabut.',
+  'erase.typeTitle': 'Ketik judul ledger untuk melanjutkan: {title}',
+  'erase.submit': 'Hapus isi ledger selamanya',
+  'erase.done': 'Isi {n} catatan sudah dihapus. Kode dan waktunya tetap ada.',
+  'account.title': 'Akun',
+  'account.verified': 'terverifikasi',
+  'account.unverified': 'belum terverifikasi',
+  'account.eraseTitle': 'Hapus akun',
+  'account.eraseWarning':
+    'Tidak bisa dibatalkan. Semua ledger Anda dihapus isinya seperti di atas, lalu email dan kata sandi akun dihapus dari server. Anda tidak bisa masuk lagi, dan email ini bisa dipakai mendaftar akun baru.',
+  'account.typeEmail': 'Ketik email akun untuk melanjutkan',
+  'account.eraseSubmit': 'Hapus akun selamanya',
+  'account.erased': 'Akun dan semua isinya sudah dihapus.',
   'legal.disclaimer':
     'Paper Trail membantu membuktikan bahwa catatan tidak diubah setelah dibuat dan kapan catatan itu ada. Ini bukan nasihat hukum dan tidak menjamin penerimaan sebagai alat bukti. Konsultasikan dengan pendamping hukum.',
 
@@ -306,6 +326,26 @@ export const en: Record<MessageKey, string> = {
   'nav.about': 'About',
   'nav.verify': 'Verify a pack',
   'nav.logout': 'Log out',
+  'nav.account': 'Account',
+  'entry.erased': "Content erased on {date}. This entry's code and time remain in the chain.",
+  'entry.erasedShort': '(content erased)',
+  'code.PASSWORD_INVALID': 'Wrong password.',
+  'code.CONFIRMATION_MISMATCH': 'What you typed does not match. Type it exactly as asked.',
+  'erase.summary': "Erase this ledger's content",
+  'erase.warning':
+    "This cannot be undone. The content of every note, photo, file and witness name is permanently deleted from the server. Only each entry's number, time and code (hash) remain, so the chain and time anchors stay valid. Evidence packs you already downloaded or sent are not erased, and unused witness links are revoked.",
+  'erase.typeTitle': 'Type the ledger title to continue: {title}',
+  'erase.submit': "Erase the ledger's content forever",
+  'erase.done': 'The content of {n} entries was erased. Their codes and times remain.',
+  'account.title': 'Account',
+  'account.verified': 'verified',
+  'account.unverified': 'not verified',
+  'account.eraseTitle': 'Erase account',
+  'account.eraseWarning':
+    "This cannot be undone. All your ledgers are erased as above, then the account's email and password are deleted from the server. You will not be able to log in again, and this email can be used to sign up anew.",
+  'account.typeEmail': 'Type the account email to continue',
+  'account.eraseSubmit': 'Erase the account forever',
+  'account.erased': 'The account and everything in it has been erased.',
   'legal.disclaimer':
     'Paper Trail helps show that records were not changed after they were made, and when they existed. It is not legal advice and does not guarantee that a record will be accepted as evidence. Consult a legal aid worker.',
 

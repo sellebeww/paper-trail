@@ -380,4 +380,68 @@ describe('owner flow', () => {
     expect(pageErrors.map((e) => e.message)).toEqual([]);
     await page.close();
   });
+
+  it('erase a ledger (type the title + password), then erase the account', async () => {
+    await context.clearCookies();
+    const page = await context.newPage();
+    const pageErrors: Error[] = [];
+    page.on('pageerror', (e) => pageErrors.push(e));
+    const email = `hapus-${Date.now()}@example.test`;
+
+    await page.goto(url);
+    await button(page, 'Daftar').click();
+    await page.getByLabel('Email').fill(email);
+    await page.getByLabel('Kata sandi').fill(PASSWORD);
+    await button(page, 'Buat akun').click();
+    await page.getByRole('heading', { name: 'Ledger saya' }).waitFor();
+    await button(page, 'Ledger baru').first().click();
+    await page.getByLabel(/^Judul/).fill('Rahasia saya');
+    await button(page, 'Buat ledger').click();
+    await page.getByRole('heading', { name: 'Rahasia saya', level: 1 }).waitFor();
+    await link(page, 'Teks').click();
+    await page.getByLabel('Apa yang terjadi?').fill('Isi yang harus bisa dihapus.');
+    await button(page, 'Catat sekarang').click();
+    await page.getByTestId('receipt').waitFor();
+    await link(page, 'Lihat linimasa')
+      .click()
+      .catch(() => page.goBack());
+    await page.getByText('Isi yang harus bisa dihapus.').waitFor();
+
+    // Nothing destructive is open by default; a wrong title is refused and nothing changes.
+    await page.getByText('Hapus isi ledger ini').click();
+    await expectAccessible(page, 'erase ledger panel');
+    await page.getByLabel(/Ketik judul ledger/).fill('judul yang salah');
+    await page.locator('details.danger #password').fill(PASSWORD);
+    await button(page, 'Hapus isi ledger selamanya').click();
+    await page.getByText(/Yang Anda ketik tidak sama/).waitFor();
+    expect(await page.getByText('Isi yang harus bisa dihapus.').count()).toBe(1);
+
+    await page.getByLabel(/Ketik judul ledger/).fill('Rahasia saya');
+    await button(page, 'Hapus isi ledger selamanya').click();
+    await page.getByText(/sudah dihapus. Kode dan waktunya tetap ada/).waitFor();
+    await page.getByText(/Isi dihapus pada/).waitFor();
+    expect(await page.getByText('Isi yang harus bisa dihapus.').count()).toBe(0);
+    await expectAccessible(page, 'erased timeline');
+
+    // The account: wrong password is refused; the right one signs out and the login stops working.
+    await page.getByRole('link', { name: 'Akun' }).click();
+    await page.getByRole('heading', { name: 'Akun', level: 1 }).waitFor();
+    await expectAccessible(page, 'account page');
+    await page.getByLabel('Ketik email akun untuk melanjutkan').fill(email);
+    await page.getByLabel('Kata sandi').fill('bukan-kata-sandi-saya');
+    await button(page, 'Hapus akun selamanya').click();
+    await page.getByText('Kata sandi salah.').waitFor();
+    await page.getByLabel('Kata sandi').fill(PASSWORD);
+    await button(page, 'Hapus akun selamanya').click();
+    await page.getByText('Akun dan semua isinya sudah dihapus.').waitFor();
+
+    await page.goto(url);
+    await page.getByLabel('Email').fill(email);
+    await page.getByLabel('Kata sandi').fill(PASSWORD);
+    await button(page, 'Masuk ke akun').click();
+    await page.getByText('Email atau kata sandi salah.').waitFor();
+
+    expect(pageErrors.map((e) => e.message)).toEqual([]);
+    await page.close();
+  });
 });

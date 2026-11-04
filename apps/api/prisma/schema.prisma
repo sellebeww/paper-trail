@@ -55,6 +55,8 @@ model User {
   /// for verified addresses, so a typo at sign-up cannot hand an account to a stranger.
   emailVerifiedAt DateTime?          @map("email_verified_at") @db.Timestamptz(3)
   createdAt       DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  /// Account erased at the owner's request: email and password are replaced and nothing else about the person remains.
+  deletedAt       DateTime?          @map("deleted_at") @db.Timestamptz(3)
   tokens          UserToken[]
   ledgers         Ledger[]
   sessions        Session[]
@@ -169,6 +171,8 @@ model Entry {
   payload     Json
   prevHash    String    @map("prev_hash") @db.Char(64)
   entryHash   String    @map("entry_hash") @db.Char(64)
+  /// Set when the owner erased the content: payload becomes {} and every hashed field stays (migration _erasure).
+  erasedAt    DateTime? @map("erased_at") @db.Timestamptz(3)
 
   ledger        Ledger          @relation(fields: [ledgerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   attachments   Attachment[]

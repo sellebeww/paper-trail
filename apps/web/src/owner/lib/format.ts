@@ -49,7 +49,7 @@ export type WitnessMark = { name: string; cosignSeq: number; signedAt: string };
 export const witnessMarks = (entries: ApiEntry[]): Map<number, WitnessMark[]> => {
   const marks = new Map<number, WitnessMark[]>();
   for (const e of entries) {
-    if (e.type !== 'witness_cosign') continue;
+    if (e.type !== 'witness_cosign' || !e.payload) continue; // an erased co-sign no longer says who signed
     const p = payloadAs.cosign(e);
     const list = marks.get(p.target_seq) ?? [];
     list.push({ name: p.witness_name, cosignSeq: e.seq, signedAt: e.created_at });

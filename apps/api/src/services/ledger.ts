@@ -52,7 +52,8 @@ export const toChainEntry = (row: EntryRow): ChainEntry => ({
   payload_hash: row.payloadHash,
   prev_hash: row.prevHash,
   entry_hash: row.entryHash,
-  payload: row.payload as PayloadObject,
+  // An erased entry has no payload (undisclosed, SPEC §6): its hashes still verify, a stored {} would not.
+  ...(row.erasedAt ? {} : { payload: row.payload as PayloadObject }),
 });
 
 /**

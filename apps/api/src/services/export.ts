@@ -128,7 +128,7 @@ export const buildLedgerExport = async (
   });
 
   const candidateFiles = entries
-    .filter((e) => e.seq <= requestedTo && (e.type === 'photo' || e.type === 'file'))
+    .filter((e) => e.seq <= requestedTo && e.payload && (e.type === 'photo' || e.type === 'file'))
     .map((e) => (e.payload as { content_sha256: string }).content_sha256);
 
   const pack = buildEvidencePack({

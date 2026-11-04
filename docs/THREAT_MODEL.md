@@ -87,7 +87,12 @@ still verifies, but the verifier sees that entries exist and when.
 
 An attacker who controls the owner's session can append entries that look authentic and are timestamped. They
 cannot alter past entries. Mitigations: argon2id password hashing, rate limiting, and (planned, not in this step)
-re-authentication for exports and witness-link creation. Account recovery design is **[OPEN]**.
+re-authentication for exports and witness-link creation. Email verification and password reset exist; reset works only
+for verified addresses and signs out every session.
+
+The worst thing a stolen session could do is **destroy** evidence, so erasing a ledger or an account needs the password
+again and the ledger title or email typed out, under the login rate limit. It still cannot rewrite an entry: erasure empties
+the payload and nothing else, the hashes stay, and a pack exported earlier remains proof of what the content was.
 
 ### 3.5 Exports: partial packs and `pack_hash`
 
@@ -247,6 +252,13 @@ anchors but cannot alter the chain.
   changes the file bytes and therefore its hash, which must be explained to users.
 - Logs must not contain entry text, tokens, or witness names. Witness tokens are stored only as hashes.
 - Personal data is minimal: pseudonymous `author_ref`, no email/phone in hashed fields.
+
+### 3.6 The owner erases content
+
+The owner can erase the content of a ledger (and the account). What stays is the skeleton: sequence numbers, times and
+hashes, which is what keeps the chain and its time anchors valid. A pack made before erasure still verifies in full and
+remains the owner's to share; a pack made after shows the entries as undisclosed. Erasure therefore removes what **we**
+hold, not what others already have. A low-entropy text could be guessed from its retained hash.
 
 ## 8. Out of scope for v0.1
 

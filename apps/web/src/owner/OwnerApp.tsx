@@ -12,6 +12,7 @@ import { ExportPage } from './pages/Export';
 import { LedgerPage } from './pages/Ledger';
 import { LedgersPage } from './pages/Ledgers';
 import { LoginPage } from './pages/Login';
+import { AccountPage } from './pages/Erase';
 import { ForgotPasswordPage, ResetPasswordPage, VerifyEmailPage } from './pages/Recovery';
 import { WitnessPanelPage } from './pages/WitnessPanel';
 import { ErrorBox, Loading } from './ui';
@@ -42,6 +43,7 @@ const routes: Route[] = [
   { path: '/lupa-sandi', render: () => <ForgotPasswordPage /> },
   { path: '/atur-ulang-sandi', render: () => <ResetPasswordPage /> },
   { path: '/konfirmasi-email', render: () => <VerifyEmailPage /> },
+  { path: '/akun', render: () => <AccountPage /> },
   { path: '/tentang', render: () => <AboutPage /> },
   {
     path: '/ledger/:id',
@@ -158,6 +160,7 @@ function Shell() {
           >
             {lang === 'id' ? 'EN' : 'ID'}
           </button>
+          {me.data && <Link to="/akun">{t('nav.account')}</Link>}
           {me.data && (
             <button type="button" className="linklike" onClick={() => void logout()}>
               {t('nav.logout')}

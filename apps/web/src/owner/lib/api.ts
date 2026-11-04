@@ -7,8 +7,15 @@ export const CATEGORIES = ['kerja', 'sewa', 'freelance', 'gig', 'lainnya'] as co
 export type Category = (typeof CATEGORIES)[number];
 
 export type User = { id: string; email: string; email_verified: boolean; created_at: string };
-/** An entry as the owner API returns it: hashed fields plus the convenience `id`, payload always present. */
-export type ApiEntry = Omit<Entry, 'payload'> & { id: string; payload: PayloadObject };
+/**
+ * An entry as the owner API returns it: hashed fields plus the convenience `id`. The payload is absent once the
+ * owner erased the content (`erased_at` is then set); the hashes stay and the chain still verifies.
+ */
+export type ApiEntry = Omit<Entry, 'payload'> & {
+  id: string;
+  payload?: PayloadObject;
+  erased_at: string | null;
+};
 
 export type LedgerRow = {
   id: string;

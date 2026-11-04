@@ -10,6 +10,7 @@ import { AppError, errorHandler, notFoundHandler, requestId } from './errors.js'
 import { checkHealth, type HealthDeps } from './health.js';
 import { authRoutes } from './routes/auth.js';
 import { ledgerRoutes } from './routes/ledgers.js';
+import { eraseRoutes } from './routes/erase.js';
 import { exportRoutes } from './routes/export.js';
 import { reminderRoutes } from './routes/reminders.js';
 import { witnessRoutes } from './routes/witness.js';
@@ -77,6 +78,7 @@ export const buildApp = (ctx: AppContext) => {
   app.use(witnessRoutes(ctx));
   app.use(reminderRoutes(ctx));
   app.use(exportRoutes(ctx));
+  app.use(eraseRoutes(ctx));
 
   app.use(notFoundHandler);
   app.use(errorHandler);

@@ -54,7 +54,10 @@ const entryJson = (e: StoredEntry) => ({
   payload: e.payload,
 });
 
-const rowJson = (row: EntryRow) => entryJson({ ...toChainEntry(row), id: row.id });
+const rowJson = (row: EntryRow) => ({
+  ...entryJson({ ...toChainEntry(row), id: row.id }),
+  erased_at: row.erasedAt?.toISOString() ?? null,
+});
 
 const ledgerJson = (l: Ledger) => ({
   id: l.id,

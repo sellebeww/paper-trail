@@ -18,6 +18,7 @@ import { setPending, type PendingKind } from '../lib/pending';
 import { useQuery } from '../lib/query';
 import { Link, useNavigate } from '../lib/router';
 import { AnchorStamp, BackLink, Empty, ErrorBox, HashChip, Icon, Loading } from '../ui';
+import { EraseLedgerPanel } from './Erase';
 import { AnchorLine } from './Ledgers';
 
 function EntryItem({
@@ -36,6 +37,12 @@ function EntryItem({
   const [showPhoto, setShowPhoto] = useState(false);
 
   const summary = () => {
+    if (entry.erased_at)
+      return (
+        <p className="entry__text entry__text--erased">
+          {t('entry.erased', { date: formatTime(entry.erased_at, lang) })}
+        </p>
+      );
     switch (entry.type) {
       case 'note': {
         const text = payloadAs.note(entry).text;
@@ -313,6 +320,7 @@ export function LedgerPage({ ledgerId }: { ledgerId: string }) {
       )}
 
       <ActionBar ledgerId={ledgerId} />
+      <EraseLedgerPanel ledgerId={ledgerId} title={ledger.title} />
     </section>
   );
 }

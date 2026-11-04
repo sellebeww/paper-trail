@@ -17,6 +17,7 @@ const anchor = (seq: number): Anchor => ({
 
 const entry = (seq: number, type: ApiEntry['type'], payload: ApiEntry['payload']): ApiEntry => ({
   id: `id-${seq}`,
+  erased_at: null,
   v: 1,
   ledger_id: 'l',
   seq,
