@@ -1,6 +1,6 @@
 # Paper Trail
 
-> Bukti yang tidak bisa kamu edit sendiri, bahkan kalau kamu mau.
+> Evidence you cannot edit yourself, even if you wanted to.
 
 Paper Trail is a tamper-evident evidence notebook for small disputes: unpaid overtime, a deposit a landlord will not
 return, a freelance client who will not pay. You write down what happens as it happens; Paper Trail makes it
@@ -9,8 +9,6 @@ without trusting Paper Trail.
 
 **Status: v0.1.0, pre-alpha.** The evidence format is stable (SPEC 1.0); the software is not ready for real cases.
 Read the [known limitations](CHANGELOG.md#known-limitations) first.
-
-[Ringkasan dalam Bahasa Indonesia ↓](#ringkasan-bahasa-indonesia)
 
 ## The problem
 
@@ -154,11 +152,10 @@ verifier are open and self-hostable. Paper Trail has no AI features and no encry
 
 ## Legal disclaimer
 
-Paper Trail membantu membuktikan bahwa catatan tidak diubah setelah dibuat dan kapan catatan itu ada. Ini bukan nasihat
-hukum dan tidak menjamin penerimaan sebagai alat bukti. Konsultasikan dengan pendamping hukum.
+Paper Trail helps show that a record was not changed after it was made and when it existed. It is not legal
+advice and does not guarantee acceptance as evidence. Consult a legal aide.
 
-_(English: Paper Trail helps show that a record was not changed after it was made and when it existed. It is not legal
-advice and does not guarantee acceptance as evidence. Consult a legal aide.)_
+(The apps show this notice in Indonesian and English.)
 
 The legal weight of electronic evidence produced this way in Indonesian courts has not been verified by the project.
 
@@ -177,34 +174,6 @@ Code and specification are licensed under the **[Apache License 2.0](LICENSE)**.
 - **The trade-off:** a company may run a closed, hosted fork. A copyleft license such as AGPL-3.0 would prevent that,
   but would discourage exactly the embedding that makes the format valuable. Adoption of the format was judged more
   important. This is a project decision, not legal advice.
-
-## Ringkasan (Bahasa Indonesia)
-
-**Paper Trail** adalah buku catatan bukti untuk sengketa kecil: lembur tidak dibayar, deposit sewa yang ditahan, klien
-freelance yang tidak membayar. Kamu mencatat kejadian saat itu juga; setiap perubahan, penghapusan, atau pemunduran
-tanggal sesudahnya, oleh siapa pun termasuk kamu dan kami, bisa ketahuan, dan siapa pun bisa memeriksanya tanpa harus
-memercayai Paper Trail.
-
-**Tiga mekanisme:**
-
-1. **Rantai hash:** setiap catatan memuat sidik jari (SHA-256) catatan sebelumnya. Mengubah, menghapus, menyisipkan,
-   atau menukar urutan catatan merusak rantai.
-2. **Tanda tangan saksi:** saksi membuka tautan sekali pakai di ponselnya, tanpa akun, lalu menandatangani catatan
-   tertentu dengan kunci di perangkatnya. Tanda tangan itu menjadi catatan di rantai.
-3. **Jangkar waktu:** sidik jari catatan terbaru dikirim berkala ke otoritas cap waktu (TSA, RFC 3161). Token
-   bertanda tangan membuktikan seluruh rantai sampai catatan itu sudah ada pada waktu tersebut.
-
-**Coba dalam 5 menit:** ikuti [Quickstart](#quickstart-5-minutes), lalu masuk sebagai `demo@papertrail.local` /
-`demo-lembur-2026` atau unggah `demo/demo-pack.json` dan `demo/demo-pack-tampered.json` di halaman `/verify`.
-
-**Status:** v0.1.0, pra-alfa. Format bukti sudah stabil (SPEC 1.0), tetapi perangkat lunak belum siap untuk kasus
-nyata. Belum ada TSA sungguhan yang dipilih; TSA tiruan di demo tidak membuktikan apa pun. Nama saksi ditulis oleh
-saksi sendiri, dan catatan setelah jangkar terakhir belum punya bukti waktu dari pihak luar. Baca
-[batasan yang diketahui](CHANGELOG.md#known-limitations).
-
-**Lisensi:** Apache-2.0 untuk kode dan spesifikasi, supaya siapa pun bisa memeriksa dan membuat verifikator sendiri.
-
-_Ini bukan nasihat hukum dan tidak menjamin penerimaan sebagai alat bukti. Konsultasikan dengan pendamping hukum._
 
 ## Author & License
 

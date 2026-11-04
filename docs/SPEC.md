@@ -168,7 +168,7 @@ one cosign entry.
 
 ### 4.3 Witness receipt
 
-After signing, the witness can download a receipt ("bukti saya"), their own independent copy:
+After signing, the witness can download a receipt ("bukti saya", "my proof"), their own independent copy:
 
 ```json
 {
@@ -415,8 +415,8 @@ reading aid. It is not verified by the verifier and carries no more weight than 
 Verification returns a `verdict`, a list of findings, and a summary. A finding has a `code`, a `severity`
 (`info`, `warning`, `error`), an optional `seq`, an optional `reason` (for `ANCHOR_INVALID`) and a `detail`.
 `verdict` is `OK` when there is no `error` finding, otherwise `FAILED`. Warnings never change the verdict but MUST be
-shown. User-facing headline (Indonesian): no error → "Rantai utuh" (partial: "Rantai utuh pada rentang yang
-diekspor"); chain error → "Terputus di entri X"; otherwise "Paket tidak lolos pemeriksaan".
+shown. User-facing headline (our tools show it in Indonesian; English in parentheses): no error → "Rantai utuh" (chain intact) (partial: "Rantai utuh pada rentang yang
+diekspor"); chain error → "Terputus di entri X" (broken at entry X); otherwise "Paket tidak lolos pemeriksaan" (the pack failed the checks).
 
 | Code                       | Severity     | Meaning                                                                                                                                                                                              |
 | -------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
