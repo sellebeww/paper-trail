@@ -58,9 +58,6 @@ jobs:
         ports: ['5672:5672']
         options: >-
           --health-cmd "rabbitmq-diagnostics -q ping" --health-interval 10s --health-timeout 10s --health-retries 20
-    env:
-      # The chaos test restarts this container to simulate a broker restart.
-      CHAOS_RABBITMQ_CONTAINER: ${{ job.services.rabbitmq.id }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -70,6 +67,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: cp .env.example .env
+      # The chaos test restarts this container to simulate a broker restart. The job context only exists in steps.
+      - run: echo "CHAOS_RABBITMQ_CONTAINER=${{ job.services.rabbitmq.id }}" >> "$GITHUB_ENV"
       - run: pnpm --filter @paper-trail/api db:migrate
       - run: pnpm --filter @paper-trail/worker db:role
       - run: pnpm test:int

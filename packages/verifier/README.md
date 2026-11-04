@@ -53,7 +53,7 @@ A passing pack shows that its entries existed in this form no later than the las
 altered since. It does not show that they are true, who wrote them, or that nothing was left out; entries after the
 last anchor have no external time proof. Read the threat model before relying on it.
 
-> Paper Trail membantu membuktikan bahwa catatan tidak diubah setelah dibuat dan kapan catatan itu ada. Ini bukan
-> nasihat hukum dan tidak menjamin penerimaan sebagai alat bukti. Konsultasikan dengan pendamping hukum.
+> Paper Trail helps show that a record was not changed after it was made and when it existed. It is not legal
+> advice and does not guarantee acceptance as evidence. Consult a legal aide. (The apps show this notice in Indonesian and English.)
 
 Requires Node.js 22+. Licensed under Apache-2.0. Copyright (c) 2026 Vassel Goleyu.

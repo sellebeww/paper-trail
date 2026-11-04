@@ -4,8 +4,8 @@ Status: v0.1.0, pre-alpha. This is the API a ledger owner uses, plus the public 
 Request and response bodies are JSON with `snake_case` fields, matching [SPEC.md](SPEC.md). User-facing
 `message` strings are Indonesian; `code` values are stable identifiers.
 
-> Paper Trail membantu membuktikan bahwa catatan tidak diubah setelah dibuat dan kapan catatan itu ada. Ini bukan
-> nasihat hukum dan tidak menjamin penerimaan sebagai alat bukti. Konsultasikan dengan pendamping hukum.
+> Paper Trail helps show that a record was not changed after it was made and when it existed. It is not legal
+> advice and does not guarantee acceptance as evidence. Consult a legal aide. (The apps show this notice in Indonesian and English.)
 
 ## Try it
 
