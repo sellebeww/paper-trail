@@ -11,12 +11,12 @@ is true, who really wrote it, or that nothing was left out.
 
 > **Legal status: not verified.** The legal weight of electronic evidence in Indonesian courts has **not** been
 > verified by the project owner. Nothing in this repository, UI or export should be read as a statement that
-> any court, mediator or agency will accept it. Users should consult a legal aide (pendamping hukum).
+> any court, mediator or agency will accept it. Users should consult a legal aide.
 
 Neutral disclaimer shown in the UI and PDF:
 
-> Paper Trail membantu membuktikan bahwa catatan tidak diubah setelah dibuat dan kapan catatan itu ada. Ini
-> bukan nasihat hukum dan tidak menjamin penerimaan sebagai alat bukti. Konsultasikan dengan pendamping hukum.
+> Paper Trail helps show that a record was not changed after it was made and when it existed. It is not legal
+> advice and does not guarantee acceptance as evidence. Consult a legal aide. (The apps show this notice in Indonesian and English.)
 
 ## 1. Assets and actors
 
