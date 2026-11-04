@@ -56,7 +56,7 @@ FROM build AS migrate
 CMD ["pnpm", "--filter", "@paper-trail/api", "db:migrate"]
 
 # ---- web: static build behind nginx, which also proxies /api/ to the API ---------------------------------
-FROM nginxinc/nginx-unprivileged:1.27-alpine AS web
+FROM nginxinc/nginx-unprivileged:1.31-alpine AS web
 ENV API_UPSTREAM=http://api:3000 CLIENT_MAX_BODY_SIZE=16m
 COPY deploy/nginx/default.conf.template /etc/nginx/templates/default.conf.template
 COPY deploy/nginx/security-headers.conf /etc/nginx/snippets/security-headers.conf
