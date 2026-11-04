@@ -51,6 +51,17 @@ export interface TokenResult {
   certificates: Uint8Array[];
 }
 
+/** Same subject name and same public key: the same CA identity, whoever issued the certificate. */
+const sameIdentity = (a: pkijs.Certificate, b: pkijs.Certificate) =>
+  bytesEqual(
+    new Uint8Array(a.subject.toSchema().toBER(false)),
+    new Uint8Array(b.subject.toSchema().toBER(false)),
+  ) &&
+  bytesEqual(
+    new Uint8Array(a.subjectPublicKeyInfo.toSchema().toBER(false)),
+    new Uint8Array(b.subjectPublicKeyInfo.toSchema().toBER(false)),
+  );
+
 const bytesEqual = (a: Uint8Array, b: Uint8Array) =>
   a.length === b.length && a.every((x, i) => x === b[i]);
 const toHex = (b: Uint8Array) => Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('');
@@ -150,6 +161,15 @@ export const verifyTimestampToken = async (
     throw new TokenError('genTime is invalid', 'TOKEN_MALFORMED');
 
   let signerCert: pkijs.Certificate | undefined;
+  const embedded = signed.certificates;
+  // Some TSAs (DigiCert) embed a cross-signed copy of their root: same name and key as the self-signed root we
+  // trust, but issued by another CA. Left in, path building can end at that copy and fail although the trusted root
+  // matches. Only the embedded certificates that are not a copy of a trust anchor take part in building the path.
+  if (trustedCerts.length > 0 && embedded) {
+    signed.certificates = embedded.filter(
+      (c) => !(c instanceof pkijs.Certificate) || !trustedCerts.some((t) => sameIdentity(t, c)),
+    );
+  }
   try {
     const result = await signed.verify({
       signer: 0,
@@ -164,6 +184,7 @@ export const verifyTimestampToken = async (
     signerCert = result.signerCertificate ?? undefined;
   } catch (err) {
     const detail = (err as { message?: string }).message ?? String(err);
+    if (embedded) signed.certificates = embedded;
     throw new TokenError(
       `CMS signature or certificate check failed: ${detail}`,
       trustedCerts.length > 0 && /certificate|path|chain/i.test(detail)
@@ -171,6 +192,7 @@ export const verifyTimestampToken = async (
         : 'SIGNATURE_INVALID',
     );
   }
+  if (embedded) signed.certificates = embedded; // the token's own list is what packs report
   if (!signerCert)
     throw new TokenError(
       'TSA certificate is missing from the token (certReq was set)',

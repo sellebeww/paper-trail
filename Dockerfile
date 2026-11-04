@@ -45,6 +45,8 @@ FROM ${NODE_IMAGE} AS worker
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=build --chown=node:node /out/worker .
+# Public roots of the suggested TSAs (docs/OPERATIONS.md): TSA_CA_CERTS=/app/tsa-roots.pem. Check their fingerprints.
+COPY --chown=node:node deploy/tsa-roots.pem ./tsa-roots.pem
 USER node
 # Exits on broker loss by design: run it under a supervisor that restarts it (restart: unless-stopped).
 CMD ["node", "dist/index.js"]
